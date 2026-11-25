@@ -1907,8 +1907,10 @@ function addSubtitleTrack(text, label, lang) {
   setTimeout(() => { for (const t of OP.v.textTracks) t.mode = t.label === tr.label ? 'showing' : 'disabled'; }, 50);
   toast(`Subtitles: ${label}`);
 }
-const osOn = () => !!INT().osKey;
-const osHeaders = () => ({ 'Api-Key': INT().osKey, 'X-User-Agent': 'OrbitTV v1.0.0', ...(INT().osToken ? { Authorization: 'Bearer ' + INT().osToken } : {}) });
+const DEF = window.ORBIT_DEFAULTS || {};
+const osKey = () => INT().osKey || DEF.osKey || '';
+const osOn = () => !!osKey();
+const osHeaders = () => ({ 'Api-Key': osKey(), 'X-User-Agent': 'OrbitTV v1.0.0', ...(INT().osToken ? { Authorization: 'Bearer ' + INT().osToken } : {}) });
 async function osLogin() {
   const i = INT(); if (!i.osUser || !i.osPass || i.osToken) return;
   try { const r = await request(`${API.os}/login`, { method: 'POST', headers: osHeaders(), body: { username: i.osUser, password: i.osPass } }); if (r && r.token) { i.osToken = r.token; saveCfg(); } } catch {}
@@ -2005,8 +2007,8 @@ SETTINGS_EXTRA.push({ order: 70, html: () => { const i = INT(); return `<section
       ${traktOn() ? '<button class="btn ghost" type="button" id="tr_off">Disconnect</button>' : `<div class="row"><input type="text" id="tr_id" placeholder="Client ID" value="${esc((i.trakt || {}).clientId || '')}" autocomplete="off"><input type="password" id="tr_secret" placeholder="Client secret" value="${esc((i.trakt || {}).clientSecret || '')}" autocomplete="off"><button class="btn" type="button" id="tr_go">Connect</button></div>`}</div>
     <div class="intbox"><b>SIMKL</b> ${simklOn() ? '<span class="pill">Connected</span>' : ''}<p class="hint">Adds films and episodes you finish to your SIMKL history. Create an app at simkl.com/settings/developer.</p>
       ${simklOn() ? '<button class="btn ghost" type="button" id="sk_off">Disconnect</button>' : `<div class="row"><input type="text" id="sk_id" placeholder="Client ID" value="${esc((i.simkl || {}).clientId || '')}" autocomplete="off"><button class="btn" type="button" id="sk_go">Connect</button></div>`}</div>
-    <div class="intbox"><b>OpenSubtitles</b><p class="hint">Search subtitles from the player (CC button). API key from opensubtitles.com/consumers; your login is optional and raises the daily download limit.</p>
-      <div class="row"><input type="password" id="i_os" placeholder="API key" value="${esc(i.osKey || '')}" autocomplete="off"><input type="text" id="i_osu" placeholder="Username (optional)" value="${esc(i.osUser || '')}" autocomplete="off"><input type="password" id="i_osp" placeholder="Password (optional)" value="${esc(i.osPass || '')}" autocomplete="off"></div></div>
+    <div class="intbox"><b>OpenSubtitles</b><p class="hint">Search subtitles from the player (CC button, or ▲ on a TV remote). ${DEF.osKey ? 'Ready to use: this app has a built-in key (5 subtitles a day). Add your free OpenSubtitles login for 20 a day, or a VIP login for 1000.' : 'API key from opensubtitles.com/consumers.'} Your login is optional and raises the daily download limit.</p>
+      <div class="row"><input type="password" id="i_os" placeholder="${DEF.osKey ? 'Built-in key in use (optional: your own key)' : 'API key'}" value="${esc(i.osKey || '')}" autocomplete="off"><input type="text" id="i_osu" placeholder="Username (optional)" value="${esc(i.osUser || '')}" autocomplete="off"><input type="password" id="i_osp" placeholder="Password (optional)" value="${esc(i.osPass || '')}" autocomplete="off"></div></div>
     <div class="intbox"><b>Google Gemini live captions</b><p class="hint">Creates subtitles for any channel as it plays, optionally translated. Uses your Gemini API key from aistudio.google.com; captions appear a few seconds behind the speech.</p>
       <div class="row"><input type="password" id="i_gem" placeholder="Gemini API key" value="${esc(i.geminiKey || '')}" autocomplete="off"><input type="text" id="i_gmodel" placeholder="Model" value="${esc(i.geminiModel || 'gemini-2.5-flash')}"><select id="i_glang">${['original', 'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Arabic', 'Turkish', 'Polish', 'Dutch', 'Hindi'].map(l => `<option value="${l}" ${(i.capLang || 'original') === l ? 'selected' : ''}>${l === 'original' ? 'Original language' : 'Translate to ' + l}</option>`).join('')}</select></div></div>
     <div class="row"><button class="btn pri" type="button" id="i_save">Save keys</button></div>
