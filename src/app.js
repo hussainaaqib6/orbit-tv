@@ -655,14 +655,17 @@ if (canSystemPlayer()) {
 const OP = { el: $('#player'), v: $('#opv'), list: [], i: 0, item: null, idleT: 0, saveT: 0 };
 OP.player = new Player(OP.v, msgFor($('#opmsg')), () => {
   // Built-in player failed: hand over to the system player when allowed
-  if (S.cfg.player === 'auto' && canSystemPlayer() && OP.item) {
+  if (playerModeFor(OP.item) === 'auto' && canSystemPlayer() && OP.item) {
     const it = OP.item, list = OP.list; toast('Switching to the system player');
     closePlayer(true); playSystem(it, list);
   } else if (canSystemPlayer()) $('#opmsg').insertAdjacentHTML('beforeend', '<br><button class="btn pri" style="margin-top:14px;pointer-events:auto" data-sysplay>Try the system player</button>');
 });
+const isVod = it => !!it && ['movie', 'episode', 'download', 'recording', 'catchup'].includes(it.kind);
+// Live TV follows the "Video player" setting; films and episodes follow "Films and episodes" (built-in by default, so subtitles work).
+function playerModeFor(it) { return isVod(it) && (S.cfg.playerVod || 'builtin') === 'builtin' ? 'auto' : S.cfg.player; }
 function openPlayer(item, list) {
   if (!item) return;
-  if (S.cfg.player === 'system' && canSystemPlayer()) return void playSystem(item, list);
+  if (playerModeFor(item) === 'system' && canSystemPlayer()) return void playSystem(item, list);
   if (pvPlayer) pvPlayer.stop();
   mvPlayers.forEach(p => p && p.stop());
   OP.list = list && list.length ? list : [item];
@@ -703,7 +706,7 @@ function opInfo() {
     <b style="font-size:18px">${esc(n ? n.title : it.name)}</b></div></div>
     ${n ? `<span class="bar" style="margin:12px 0 8px"><i style="width:${pct(n).toFixed(1)}%"></i></span>` : ''}
     ${nx ? `<small class="dim">Next ${hhmm(nx.start)} · ${esc(nx.title)}</small>` : ''}
-    ${OP.list.length > 1 && !touch ? `<small class="dim" style="display:block;margin-top:6px">${tv ? '▲ ▼ change channel · Back to close' : '↑ ↓ change channel · F favourite · Esc close'}</small>` : ''}`;
+    ${!touch ? `<small class="dim" style="display:block;margin-top:6px">${tv ? `${OP.list.length > 1 ? '▲ ▼ change channel · ' : ''}OK for options · Back to close` : `${OP.list.length > 1 ? '↑ ↓ change channel · ' : ''}F favourite · C subtitles · Esc close`}</small>` : ''}`;
 }
 function closePlayer(quiet) {
   savePos();
@@ -756,6 +759,24 @@ OP.el.addEventListener('touchstart', e => { if (e.target === OP.v || e.target ==
 $('#opclose').onclick = () => closePlayer();
 $('#opprev').onclick = () => zap(-1);
 $('#opcc').onclick = () => subtitlesMenu();
+function playerMenu() {
+  const it = OP.item; if (!it) return;
+  const fk = it.favKey || it.key;
+  modal(`<h2>${esc(it.name)}</h2><div class="morelist">
+    <button class="btn ghost" id="pm_subs">Subtitles${osOn() && isVod(it) ? ' and OpenSubtitles' : ''}</button>
+    ${it.kind === 'live' && OP.list.length > 1 ? '<button class="btn ghost" data-close id="pm_next">Next channel</button>' : ''}
+    <button class="btn ghost" id="pm_fav">${S.favs.has(fk) ? 'Remove from favourites' : 'Add to favourites'}</button>
+    ${canSystemPlayer() ? '<button class="btn ghost" id="pm_sys">Play in system player</button>' : ''}
+    ${canCast() ? '<button class="btn ghost" id="pm_cast">Cast to a TV</button>' : ''}
+    <button class="btn ghost" id="pm_close">Stop watching</button></div>`, 'narrow sheet');
+  const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+  on('#pm_subs', () => { closeModal(); subtitlesMenu(); });
+  on('#pm_next', () => zap(1));
+  on('#pm_fav', () => { closeModal(); $('#opfav').click(); });
+  on('#pm_sys', () => { closeModal(); const l = OP.list; closePlayer(true); playSystem(it, l); });
+  on('#pm_cast', () => { closeModal(); castMenu(); });
+  on('#pm_close', () => { closeModal(); closePlayer(); });
+}
 $('#opnext').onclick = () => zap(1);
 $('#opfs').onclick = () => document.fullscreenElement ? document.exitFullscreen() : OP.el.requestFullscreen().catch(() => { if (OP.v.webkitEnterFullscreen) OP.v.webkitEnterFullscreen(); });
 $('#opfav').onclick = () => { const it = OP.item; if (it) { toggleFav(it.favKey || it.key); $('#opfav').classList.toggle('on', S.favs.has(it.favKey || it.key)); } };
@@ -764,12 +785,14 @@ function opKey(e) {
   const live = OP.item && OP.item.kind === 'live', v = OP.v;
   const k = e.key;
   if (k === 'Escape' || k === 'Backspace' || k === 'GoBack') { if (!document.fullscreenElement) { e.preventDefault(); closePlayer(); } return; }
+  const tv = document.body.classList.contains('tv');
+  if (k === 'ContextMenu' || k === 'Menu' || k === 'Settings' || (tv && !live && (k === 'ArrowUp' || k === 'ArrowDown')) || (tv && live && k === 'Enter')) { e.preventDefault(); return playerMenu(); }
   if ((k === 'ArrowUp' || k === 'PageUp' || k === 'ChannelUp') && live) { e.preventDefault(); zap(-1); }
   else if ((k === 'ArrowDown' || k === 'PageDown' || k === 'ChannelDown') && live) { e.preventDefault(); zap(1); }
   else if ((k === 'ArrowRight' || k === 'MediaFastForward') && !live) { e.preventDefault(); v.currentTime += k === 'ArrowRight' ? 10 : 30; }
   else if ((k === 'ArrowLeft' || k === 'MediaRewind') && !live) { e.preventDefault(); v.currentTime -= k === 'ArrowLeft' ? 10 : 30; }
   else if (k === ' ' || k === 'Enter' || k === 'MediaPlayPause' || k === 'MediaPlay' || k === 'MediaPause') { if (document.activeElement && document.activeElement.tagName === 'BUTTON' && k === 'Enter') return; e.preventDefault(); v.paused ? v.play() : v.pause(); }
-  else if (k === 'f' || k === 'F' || k === 'ContextMenu') $('#opfav').click();
+  else if (k === 'f' || k === 'F') $('#opfav').click();
   else if (k === 'm' || k === 'M') v.muted = !v.muted;
   else if (k === 'c' || k === 'C') subtitlesMenu();
   else if (k === 'n' || k === 'N') zap(1);
@@ -1197,6 +1220,7 @@ function settings() {
     { order: 90, html: () => `<section><h2>This device</h2><div class="form">
       <label>Layout<select id="cfglayout">${[['auto', 'Automatic'], ['tv', 'TV (remote control)'], ['touch', 'Phone / tablet'], ['desktop', 'Computer']].map(([v, l]) => `<option value="${v}" ${S.cfg.layout === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       ${canSystemPlayer() ? `<label>Video player<select id="cfgplayer">${[['auto', 'Automatic — built-in, switch to system player if a stream fails'], ['builtin', 'Built-in player only'], ['system', 'Always use the system player (best for Fire TV Stick)']].map(([v, l]) => `<option value="${v}" ${S.cfg.player === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Films and episodes<select id="cfgplayervod">${[['builtin', 'Built-in player — subtitles and OpenSubtitles available'], ['same', 'Same as live TV']].map(([v, l]) => `<option value="${v}" ${(S.cfg.playerVod || 'builtin') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <p class="hint">The system player (${PLATFORM === 'ios' ? 'Apple AVPlayer' : 'ExoPlayer'}) plays more formats, including AC3 audio, and supports Chromecast and picture-in-picture. The built-in player keeps channel zapping, subtitles and the on-screen guide.</p>` : ''}</div></section>` },
     { order: 95, html: () => `<section><h2>Keyboard and remote</h2><p class="dim" style="margin:0">Arrow keys move around · Enter selects · F favourites · / searches · in the player: ↑ ↓ change channel, ← → skip 10 s, Space pauses, M mutes, Esc goes back.</p></section>` },
   ].sort((a, b) => a.order - b.order);
@@ -1206,6 +1230,7 @@ function settings() {
   on('#refreshh', 'onchange', e => { S.cfg.refreshHours = +e.target.value; saveCfg(); });
   on('#cfglayout', 'onchange', e => { S.cfg.layout = e.target.value; saveCfg(); applyLayout(); });
   on('#cfgplayer', 'onchange', e => { S.cfg.player = e.target.value; saveCfg(); });
+  on('#cfgplayervod', 'onchange', e => { S.cfg.playerVod = e.target.value; saveCfg(); });
   on('#reload', 'onclick', () => loadAll().then(() => S.view === 'settings' && render()));
   on('#relock', 'onclick', () => { PROF.unlocked = false; applyFilters(); render(); });
   on('#epgform', 'onsubmit', e => { e.preventDefault(); S.cfg.extraEpg = $('#epgx').value.split(/\s+/).filter(Boolean); S.cfg.epgOffset = +$('#epgoff').value; saveCfg(); S.epgUrls = [...new Set([...(S.epgUrls || []), ...S.cfg.extraEpg])]; loadAll().then(() => S.view === 'settings' && render()); });
@@ -2306,7 +2331,7 @@ function spatial(dir, root = document) {
   if (best) { best.focus({ preventScroll: true }); best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
 }
 document.addEventListener('keydown', e => {
-  if (!OP.el.hidden) return opKey(e);
+  if (!OP.el.hidden && $('#modal').hidden) return opKey(e);
   const a = document.activeElement, tag = a && a.tagName;
   const arrow = e.key.startsWith('Arrow');
   const modalOpen = !$('#modal').hidden;
@@ -2351,8 +2376,8 @@ function moreSheet() {
 }
 // One "back" for the Android/Fire TV back button, Escape and Backspace
 function back() {
-  if (!OP.el.hidden) return closePlayer();
   if (!$('#modal').hidden) return closeModal();
+  if (!OP.el.hidden) return closePlayer();
   if (S.view !== 'home') return go('home');
   if (P.app) P.app.minimizeApp ? P.app.minimizeApp().catch(() => P.app.exitApp()) : P.app.exitApp();
 }
