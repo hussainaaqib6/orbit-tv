@@ -1,0 +1,16 @@
+services:
+  orbit-server:
+    build: .
+    container_name: orbit-server
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      # Change this to your own long random secret, and type the same value into the app.
+      ORBIT_TOKEN: "change-me-to-a-long-random-secret"
+      TZ: "Europe/London"
+      PAD_BEFORE: "1"
+      PAD_AFTER: "3"
+      MAX_DAYS: "0"
+    volumes:
+      - ./data:/data

@@ -1,0 +1,21 @@
+{
+  "appId": "tv.orbit.player",
+  "appName": "Orbit TV",
+  "webDir": "src",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#05060B"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#05060B"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": false },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#05060B", "overlaysWebView": false }
+  }
+}

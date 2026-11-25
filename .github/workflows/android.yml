@@ -1,0 +1,50 @@
+# Builds the Android / Fire TV app every time you push, and publishes it as a download.
+name: Build Android & Fire TV app
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Install
+        run: npm ci
+      - name: Copy web app into the Android project
+        run: npx cap sync android
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../OrbitTV.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OrbitTV-android
+          path: OrbitTV.apk
+      - name: Publish as the "latest" download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Orbit TV (latest build)
+          prerelease: true
+          make_latest: false
+          files: OrbitTV.apk
+          body: |
+            Install on Android: open this page on your phone and tap OrbitTV.apk.
+            Install on Fire TV: use the Downloader app with the link to OrbitTV.apk on this page.
