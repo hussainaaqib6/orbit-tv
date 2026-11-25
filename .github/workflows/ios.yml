@@ -22,7 +22,8 @@ jobs:
       - name: Add built-in keys from repository secrets
         env:
           OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-        run: node -e "require('fs').writeFileSync('src/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';\n')"
+        run: |
+          node -e "require('fs').writeFileSync('src/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';')"
       - name: Copy web app into the iOS project
         run: npx cap sync ios
       - name: Build

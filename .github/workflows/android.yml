@@ -29,11 +29,13 @@ jobs:
       - name: Add built-in keys from repository secrets
         env:
           OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-        run: node -e "require('fs').writeFileSync('src/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';\n')"
+        run: |
+          node -e "require('fs').writeFileSync('src/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';')"
       - name: Check built-in keys
         env:
           OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
-        run: if [ -n "$OPENSUBTITLES_API_KEY" ]; then echo "OpenSubtitles key: present"; else echo "OpenSubtitles key: MISSING"; fi
+        run: |
+          if [ -n "$OPENSUBTITLES_API_KEY" ]; then echo "OpenSubtitles key is present"; else echo "OpenSubtitles key is MISSING"; fi
       - name: Copy web app into the Android project
         run: npx cap sync android
       - name: Build APK
