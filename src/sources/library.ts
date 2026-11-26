@@ -173,7 +173,7 @@ export const saveM3UFile = (id: string, text: string) => cache.set(`m3u:${id}`, 
 
 async function loadSource(src: Source): Promise<Catalog> {
   switch (src.type) {
-    case 'xtream': return loadXtream(src);
+    case 'xtream': return loadXtream(src, msg => { loading.value = msg; });
     case 'stalker': return loadStalker(src);
     case 'm3u': {
       const text = src.fromFile ? await cache.get<string>(`m3u:${src.id}`) : await getText(src.url ?? '');
@@ -214,9 +214,25 @@ export async function start(): Promise<void> {
 
 export const errors = signal<string[]>([]);
 
-export async function reload(): Promise<void> {
-  if (loading.value) return;
-  const live: Channel[] = [], movies: Movie[] = [], series: Series[] = [];
+/** When the current load started (0 = not loading), so the UI can offer "Try again" if it stalls. */
+export const loadingSince = signal(0);
+
+let generation = 0;
+
+/** Reloads every playlist. `force` starts again even if a load is still running (a stalled one is dropped). */
+export async function reload(force = false): Promise<void> {
+  if (loadingSince.value && !force) return;
+  const gen = ++generation;
+  loadingSince.value = Date.now();
+  try {
+    await reloadInner(gen);
+  } finally {
+    if (gen === generation) { loadingSince.value = 0; loading.value = ''; }
+  }
+}
+
+async function reloadInner(gen: number): Promise<void> {
+  let live: Channel[] = [], movies: Movie[] = [], series: Series[] = [];
   const epgUrls = new Set<string>();
   const errs: string[] = [];
   const list = sources.value.map(s => ({ ...s }));
@@ -225,7 +241,8 @@ export async function reload(): Promise<void> {
     loading.value = `Loading ${src.name}…`;
     try {
       const r = await loadSource(src);
-      live.push(...r.live); movies.push(...r.movies); series.push(...r.series);
+      // concat, not push(...list): spreading 50,000+ items as arguments overflows the call stack.
+      live = live.concat(r.live); movies = movies.concat(r.movies); series = series.concat(r.series);
       r.epgUrls.forEach(u => epgUrls.add(u));
       if (src.epgUrl) epgUrls.add(src.epgUrl);
       Object.assign(src, { error: '', loadedAt: Date.now(), counts: { live: r.live.length, movies: r.movies.length, series: r.series.length } });
@@ -234,6 +251,7 @@ export async function reload(): Promise<void> {
       errs.push(`${src.name}: ${src.error}`);
     }
   }
+  if (gen !== generation) return; // a newer load took over
   numberChannels(live);
   const next: Catalog = { live, movies, series, epgUrls: [...epgUrls] };
   batch(() => {

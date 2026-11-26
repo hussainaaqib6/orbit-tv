@@ -1,6 +1,6 @@
 // Home: a spotlight at the top, then rows built from what the viewer actually watches.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { catalog, favourites, recentChannels, resume, itemIndex, errors, loaded } from '../sources/library';
+import { catalog, favourites, recentChannels, resume, itemIndex, errors, loaded, loading, loadingSince, reload } from '../sources/library';
 import type { Channel, Movie, Series } from '../sources/types';
 import { ChannelCard, PosterCard, openItem } from '../ui/cards';
 import { Img } from '../ui/Img';
@@ -39,7 +39,7 @@ export function Home() {
   const spotKey = continueItems[0]?.[1].seriesKey ?? continueItems[0]?.[0] ?? newMovies[0]?.key ?? newSeries[0]?.key;
   const spot = spotKey ? idx.get(spotKey) as Movie | Series | undefined : undefined;
 
-  if (!loaded.value) return <div class="screen"><div class="empty"><span class="spinner big" /><h2>Loading your playlists</h2></div></div>;
+  if (!loaded.value) return <LoadingPlaylists />;
   const nothing = !c.live.length && !c.movies.length && !c.series.length;
 
   return (
@@ -79,6 +79,34 @@ export function Home() {
         <Shelf title="Live TV">{c.live.slice(0, 20).map(ch => <ChannelCard key={ch.key} channel={ch} />)}</Shelf>
       )}
       <div style={{ height: '2rem' }} />
+    </div>
+  );
+}
+
+/** First load: say what is happening, and offer a way out if it stalls. */
+function LoadingPlaylists() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const since = loadingSince.value;
+  const slow = !since || now - since > 45000;
+  const secs = since ? Math.round((now - since) / 1000) : 0;
+  return (
+    <div class="screen">
+      <div class="empty">
+        {since ? <span class="spinner big" /> : null}
+        <h2>{since ? 'Loading your playlists' : 'Your playlists have not loaded'}</h2>
+        <p class="tnum">{loading.value || ' '}{since && secs > 5 ? `  (${secs} s)` : ''}</p>
+        {slow && (
+          <>
+            {since && <p class="muted" style={{ maxWidth: '34rem' }}>Large playlists can take a minute on a TV stick. If nothing changes, try again or check the login details.</p>}
+            {errors.value.map(e => <p key={e} class="error-text">{e}</p>)}
+            <div class="row" style={{ justifyContent: 'center' }}>
+              <button class="btn primary" data-autofocus onClick={() => reload(true)}><Icon name="refresh" />Try again</button>
+              <button class="btn quiet" onClick={() => goRoot({ name: 'settings', section: 'playlists' })}>Playlist settings</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
