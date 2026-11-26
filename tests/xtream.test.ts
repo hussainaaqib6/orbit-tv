@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Source } from '../src/sources/types';
 
 const N = 60000;
 vi.mock('../src/core/http', async orig => {
@@ -24,7 +25,7 @@ describe('Xtream loading', () => {
   it('loads a very large account, one list at a time, reporting progress', async () => {
     const { loadXtream } = await import('../src/sources/xtream');
     const steps: string[] = [];
-    const src = { id: 's', name: 'Provider', type: 'xtream' as const, enabled: true, server: 'host:8080', user: 'u', pass: 'p' };
+    const src: Source = { id: 's', name: 'Provider', type: 'xtream', enabled: true, server: 'host:8080', user: 'u', pass: 'p' };
     const c = await loadXtream(src, m => steps.push(m));
     expect(c.live[0]).toMatchObject({ name: 'UK: BBC One', url: 'http://host:8080/live/u/p/7.ts', catchup: { type: 'xc', days: 7 } });
     expect(c.movies).toHaveLength(N);
