@@ -19,7 +19,7 @@
   --blue: #1d9bf0;   /* the "current page" and primary colour */
   --cyan: #57b4f4;   /* bright accent */
   /* Focus: a sky-blue fill with a light outline. */
-  --grad: linear-gradient(180deg, #34a5f1, #1779bb);
+  --grad: #1d9bf0; /* flat: highlights are one solid colour */
   --ring: 0 0 0 0.16rem #69bcf5;
   --glow: 0 0 0 0.16rem #69bcf5;
   /* Accent tints that follow the theme (core/theme.ts sets them for other colours). */
@@ -80,7 +80,7 @@ body.video-full #app > .shell { visibility: hidden; }
 .shell { display: flex; width: 100%; height: 100%; }
 .screen-area {
   flex: 1; position: relative; overflow: hidden;
-  background: var(--bg-image, none) center / cover, linear-gradient(120deg, var(--bg) 35%, var(--bg-lit));
+  background: var(--bg-image, none) center / cover, var(--bg);
 }
 body.video-preview .screen-area { background: transparent; }
 .screen { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
@@ -184,37 +184,26 @@ textarea.input { height: 7rem; padding: 0.75rem 1.1rem; resize: vertical; }
 .cat { display: flex; align-items: center; gap: 0.6rem; width: 100%; min-height: 2.75rem; padding: 0.35rem 0.85rem; border-radius: var(--r-m); color: var(--muted); font-weight: 650; }
 .cat .n { margin-left: auto; color: var(--faint); font-size: 0.82rem; font-variant-numeric: tabular-nums; font-weight: 600; }
 .cat.on { color: var(--ink); background: var(--bg-4); }
-.cat:focus { background: var(--grad); color: #fff; box-shadow: var(--ring); }
+.cat:focus { background: var(--blue); color: #fff; }
 .cat:focus .n { color: #e8e6ff; }
 .cat-sep { color: var(--faint); font-size: 0.78rem; font-weight: 700; padding: 1rem 0.85rem 0.35rem; }
 
 /* ------------------------------ live TV ------------------------------ */
-.live { display: grid; grid-template-columns: 18.5rem minmax(0, 1fr) minmax(0, 0.9fr); height: 100%; }
 .chlist { background: var(--bg-2); display: flex; flex-direction: column; min-height: 0; }
 .chlist-head, .vod-head { display: flex; align-items: center; gap: 0.8rem; }
 .chlist-head { padding: 1.7rem 1.3rem 0.8rem; }
 .chlist-head h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
 .count { color: var(--faint); font-weight: 700; font-size: 0.85rem; background: var(--bg-3); padding: 0.15rem 0.55rem; border-radius: 1rem; flex: none; }
 .chrow {
-  display: grid; grid-template-columns: auto 3rem minmax(0, 1fr) auto; gap: 0.85rem; align-items: center;
-  width: 100%; height: calc(100% - 0.35rem); padding: 0 0.85rem 0 0.6rem; border-radius: var(--r-m);
+  display: flex; align-items: center; gap: 0.8rem; width: 100%; height: calc(100% - 0.2rem); padding: 0 0.9rem 0 0.5rem; border-radius: 0.35rem;
+  font-weight: 600; font-size: 1.02rem;
 }
 .chrow .num { width: 2.3rem; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; font-size: 0.85rem; font-weight: 650; }
-.chrow .logo { width: 3rem; height: 3rem; border-radius: var(--r-s); background: var(--bg-3); display: grid; place-items: center; overflow: hidden; }
-.chrow .logo img { max-width: 82%; max-height: 82%; object-fit: contain; }
-.chrow .logo .initials { font-size: 0.95rem; }
-.chrow .meta { display: flex; flex-direction: column; min-width: 0; }
-.chrow .name { font-weight: 700; display: flex; gap: 0.45rem; align-items: center; }
-.chrow .now { color: var(--muted); font-size: 0.86rem; font-weight: 500; }
-.chrow .bar { display: block; height: 0.2rem; background: var(--bg-4); border-radius: 1rem; margin-top: 0.35rem; overflow: hidden; }
-.chrow .bar i { display: block; height: 100%; background: var(--grad); border-radius: 1rem; }
+.chrow .name { flex: 1; min-width: 0; }
 .chrow.playing { background: var(--bg-3); box-shadow: inset 0.22rem 0 0 var(--cyan); }
 .chrow.playing .name { color: #fff; }
-.chrow:focus { background: var(--grad); color: #fff; box-shadow: var(--ring); }
-.chrow:focus .num, .chrow:focus .now { color: #e8e6ff; }
-.chrow:focus .bar { background: #ffffff38; }
-.chrow:focus .bar i { background: #fff; }
-.chrow:focus .logo { background: #ffffff26; }
+.chrow:focus { background: var(--blue); color: #fff; }
+.chrow:focus .num { color: #fff; }
 .tag { font-size: 0.64rem; font-weight: 700; padding: 0.1rem 0.38rem; border-radius: 0.3rem; background: #ffffff24; color: var(--muted); letter-spacing: .02em; flex: none; }
 .tag.cu { color: var(--ok); }
 .chrow:focus .tag { background: #ffffff2e; color: #fff; }
@@ -227,26 +216,12 @@ textarea.input { height: 7rem; padding: 0.75rem 1.1rem; resize: vertical; }
 .eq i:nth-child(3) { height: 75%; }
 .chrow:focus .eq i { background: #fff; }
 
-.preview { display: flex; flex-direction: column; min-height: 0; padding: 1.2rem 1.2rem 0 0; background: transparent; }
 body:not(.video-preview) .preview { background: var(--bg-2); }
-body.video-preview .preview { box-shadow: inset 0 1.2rem 0 var(--bg-2), inset -1.2rem 0 0 var(--bg-2); }
 .preview-video { height: 0; padding-bottom: 56.25%; width: 100%; position: relative; flex: none; border-radius: var(--r-s); box-shadow: 0 0 0 1px var(--line), 0 1.5rem 3rem -1.5rem #000; }
 body:not(.video-preview) .preview-video { background: #000; }
 .pv-msg { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-content: center; justify-items: center; gap: 0.7rem; color: var(--muted); text-align: center; padding: 1rem; font-weight: 600; }
 .pv-msg svg { width: 2.2rem; height: 2.2rem; color: var(--violet); }
 .pv-msg.solid { background: #000; }
-.preview-info { padding: 1.2rem 0.3rem 1rem; overflow-y: auto; flex: 1; background: var(--bg-2); scrollbar-width: none; }
-.pi-channel { display: flex; align-items: center; gap: 0.7rem; font-weight: 700; color: var(--muted); }
-.pi-logo { width: 2rem; height: 2rem; border-radius: 0.4rem; overflow: hidden; background: var(--bg-3); display: grid; place-items: center; flex: none; }
-.pi-logo img { max-width: 85%; max-height: 85%; object-fit: contain; }
-.pi-logo .initials { font-size: 0.7rem; }
-.pi-hint { margin-left: auto; font-size: 0.78rem; color: #fff; background: var(--blue); padding: 0.2rem 0.6rem; border-radius: 1rem; flex: none; }
-.preview-info h2 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; margin: 0.7rem 0 0.35rem; }
-.preview-info .when { color: var(--muted); font-weight: 600; }
-.preview-info .desc { color: #c9cde0; margin-top: 0.7rem; font-weight: 500; }
-.up-next { margin-top: 1.1rem; display: grid; gap: 0.15rem; }
-.up-next div { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 0.6rem; color: var(--faint); font-size: 0.92rem; font-weight: 600; white-space: nowrap; }
-.up-next b { font-weight: 600; color: var(--ink); }
 .livebar { height: 0.3rem; border-radius: 1rem; background: var(--bg-4); overflow: hidden; margin-top: 0.7rem; }
 .livebar i { display: block; height: 100%; background: linear-gradient(90deg, #ff3d6e, #ff8a3d); border-radius: 1rem; }
 .dot-live { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--live); margin-right: 0.45rem; vertical-align: 0.1rem; box-shadow: 0 0 0 0.2rem #ff3d6e33; }
@@ -415,10 +390,8 @@ body:not(.video-preview) .preview-video { background: #000; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* Chrome-silver titles, like the MATRIX lettering. */
-.cats-head h1, .page-head h1, .guide-head h1, .settings-body h2, .vod-head h2, .chlist-head h2, .hero h1, .detail h1, .welcome h1 {
-  background: var(--chrome); -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+/* Titles: plain white (flat look; clipped-gradient text is slow to redraw on TV sticks). */
+.cats-head h1, .page-head h1, .guide-head h1, .settings-body h2, .vod-head h2, .chlist-head h2, .hero h1, .detail h1, .welcome h1 { color: #fff; }
 
 /* ---------- Logo ---------- */
 /* MATRIX in chrome, TV on a red tag; slanted a little for pace. Sized by font-size. */
@@ -629,15 +602,13 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .cat > .clip { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.22; word-break: break-word; }
 .chlist-head h2.clip, .vod-head h2.clip { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; font-size: 1.2rem; }
 
-.chrow .now { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
-.chrow .now .clip { flex: 1; min-width: 0; }
-.chrow.divider { grid-template-columns: auto minmax(0, 1fr); background: transparent; }
+.chrow.divider { background: transparent; }
 .divider-name { color: var(--faint); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.04em; }
 .chrow.divider:focus .divider-name { color: #fff; }
 .pv-error { margin: 0.6rem 0 0; font-size: 0.85rem; }
 
 /* ---------- Home: the hub of big tiles ---------- */
-.dash { display: flex; flex-direction: column; padding: 2.2rem 3.4rem 1.8rem; overflow: hidden; }
+.dash { background: linear-gradient(120deg, var(--bg) 35%, var(--bg-lit)); display: flex; flex-direction: column; padding: 2.2rem 3.4rem 1.8rem; overflow: hidden; }
 .dash-top { display: flex; align-items: center; justify-content: space-between; flex: none; }
 .dash-mark { font-size: 2.3rem; }
 .dash-clock { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
@@ -682,3 +653,40 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .settings-crumb { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); margin-bottom: 1.4rem; font-size: 0.95rem; }
 .settings-crumb svg { width: 1.2rem; height: 1.2rem; }
 .settings-crumb b { color: var(--ink); }
+
+/* ---------- Live TV, classic layout ----------
+   [categories (only while choosing one)] [channel names] [preview + now | schedule]
+   The right-hand side keeps the same width and place whether or not the categories show, so the
+   preview picture never moves. Flat colours and no shadows: cheap to redraw while scrolling. */
+.live { display: grid; grid-template-columns: 17rem minmax(0, 1fr) 57%; height: 100%; }
+.live > .cats { grid-column: 1; }
+.live > .chlist { grid-column: 2; border-right: 1px solid var(--line); }
+.live > .preview { grid-column: 3; }
+.live.folded { grid-template-columns: 0 minmax(0, 1fr) 57%; }
+.live.folded > .cats { display: none; }
+.chlist-back { width: 1.3rem; height: 1.3rem; color: var(--faint); margin-right: -0.3rem; }
+.live:not(.folded) .chlist-back { visibility: hidden; }
+.chrow .num { width: 2.6rem; flex: none; }
+.chrow.playing { background: var(--bg-3); box-shadow: inset 0.22rem 0 0 var(--cyan); }
+.preview { display: flex; flex-direction: column; min-height: 0; background: var(--bg-2); }
+.pv-top { display: flex; flex: none; padding: 1.2rem 1.2rem 0 1.2rem; gap: 1.1rem; }
+.pv-top .preview-video { width: 60%; padding-bottom: 33.75%; border-radius: 0; box-shadow: none; }
+/* With the picture showing, the page is see-through: the box's own shadow paints the panel round
+   it (clipped to the panel), so only the box shows the picture. */
+body.video-preview .preview { background: transparent; overflow: hidden; }
+body.video-preview .pv-top .preview-video { box-shadow: 0 0 0 200vmax var(--bg-2); }
+.pv-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.pv-badge { align-self: flex-start; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; color: #fff; background: var(--blue); padding: 0.18rem 0.5rem; border-radius: 0.25rem; }
+.pv-channel { font-weight: 700; font-size: 1.05rem; }
+.pv-channel .tnum { color: var(--muted); }
+.pv-title { font-size: 1.3rem; font-weight: 800; line-height: 1.2; }
+.pv-when { color: var(--muted); font-weight: 600; font-size: 0.92rem; }
+.pv-info .livebar { margin-top: 0.3rem; }
+.pv-epg { flex: 1; min-height: 0; overflow: hidden; padding: 1rem 1.2rem; border-top: 0; }
+.pv-prog { display: grid; grid-template-columns: 9.8rem minmax(0, 1fr); column-gap: 0.9rem; padding: 0.45rem 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+.pv-prog > span:first-child { grid-row: span 2; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.pv-prog b { font-weight: 700; }
+.pv-prog > span.clip { grid-column: 2; color: var(--faint); font-size: 0.85rem; }
+.pv-prog.now b, .pv-prog.now > span:first-child { color: #fff; }
+.pv-prog.now { box-shadow: inset 0.2rem 0 0 var(--cyan); padding-left: 0.6rem; }
+.pv-error { margin: 0.6rem 1.2rem 0; }
