@@ -903,6 +903,21 @@ public class OrbitPlayerPlugin extends Plugin {
         main.post(() -> { videoOnTop = on; applyOnTop(); call.resolve(); });
     }
     private boolean videoOnTop;
+    private String lastLayoutInfo = "";
+
+    /** What the player knows about where it drew the picture, for Stream info. */
+    @PluginMethod
+    public void diagnostics(PluginCall call) {
+        main.post(() -> {
+            JSObject o = new JSObject();
+            o.put("rect", lastRectInfo);
+            o.put("layout", lastLayoutInfo);
+            o.put("device", android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL + " Android " + android.os.Build.VERSION.RELEASE);
+            o.put("state", player == null ? "no player" : player.getPlaybackState() + (player.isPlaying() ? " playing" : ""));
+            o.put("video", player == null || player.getVideoFormat() == null ? "none" : player.getVideoFormat().width + "x" + player.getVideoFormat().height + " " + player.getVideoFormat().sampleMimeType);
+            call.resolve(o);
+        });
+    }
     private void applyOnTop() {
         if (container == null) return;
         boolean top = videoOnTop && rect != null;
@@ -942,10 +957,25 @@ public class OrbitPlayerPlugin extends Plugin {
 
     /* ------------------------------ layout ------------------------------ */
 
-    private static int[] rectFrom(JSObject r) {
+    /**
+     * The preview box in WebView pixels. The page sends the box and its own size in CSS pixels; the
+     * scale is the WebView's real width over the page width, which is right whatever pixel ratio the
+     * WebView claims.
+     */
+    private int[] rectFrom(JSObject r) {
         if (r == null || !r.has("width")) return null;
-        return new int[] { r.optInt("x"), r.optInt("y"), r.optInt("width"), r.optInt("height") };
+        WebView wv = getBridge().getWebView();
+        double vw = r.optDouble("vw", 0), vh = r.optDouble("vh", 0);
+        double sx, sy;
+        if (vw > 0 && vh > 0 && wv.getWidth() > 0 && wv.getHeight() > 0) { sx = wv.getWidth() / vw; sy = wv.getHeight() / vh; }
+        else { sx = sy = r.optDouble("dpr", 1); }
+        lastRectInfo = String.format(java.util.Locale.ROOT, "css %.0f,%.0f %.0fx%.0f page %.0fx%.0f dpr %.2f webview %dx%d scale %.3f",
+                r.optDouble("x"), r.optDouble("y"), r.optDouble("width"), r.optDouble("height"), vw, vh, r.optDouble("dpr", 0), wv.getWidth(), wv.getHeight(), sx);
+        return new int[] { (int) Math.round(r.optDouble("x") * sx), (int) Math.round(r.optDouble("y") * sy),
+                (int) Math.round(r.optDouble("width") * sx), (int) Math.round(r.optDouble("height") * sy) };
     }
+    /** For the player's diagnostics panel. */
+    private String lastRectInfo = "";
 
     /** Places the frame (full screen or the preview rect) and sizes the surface for the aspect mode. */
     private void layoutVideo() {
@@ -974,6 +1004,7 @@ public class OrbitPlayerPlugin extends Plugin {
         shp.topMargin = fy;
         shp.gravity = Gravity.TOP | Gravity.START;
         shutter.setLayoutParams(shp);
+        lastLayoutInfo = "frame " + fx + "," + fy + " " + fw + "x" + fh + " in " + cw + "x" + ch + (onTexture ? " texture" : " surface") + (container.getZ() > 0 ? " on top" : " behind");
         Log.d("OrbitPlayer", "layout rect=" + (rect == null ? "full" : rect[0] + "," + rect[1] + " " + rect[2] + "x" + rect[3])
                 + " frame=" + fx + "," + fy + " " + fw + "x" + fh + " container=" + cw + "x" + ch + " webview@" + wvLoc[0] + "," + wvLoc[1]);
         // Subtitles cover the same area as the picture, and are hidden in the small preview box.
