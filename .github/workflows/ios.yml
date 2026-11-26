@@ -23,7 +23,9 @@ jobs:
         env:
           OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
         run: |
-          node -e "require('fs').writeFileSync('src/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';')"
+          node -e "require('fs').writeFileSync('src/public/config.js', 'window.ORBIT_DEFAULTS = ' + JSON.stringify({ osKey: process.env.OPENSUBTITLES_API_KEY || '' }) + ';')"
+      - name: Build the web app
+        run: npm run build
       - name: Copy web app into the iOS project
         run: npx cap sync ios
       - name: Build

@@ -1,9 +1,15 @@
 node_modules/
 dist/
+release/
 build/
 android/app/build/
 android/.gradle/
 android/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
 ios/App/build/
+ios/App/App/public/
 ios/DerivedData/
 *.log
+.DS_Store
