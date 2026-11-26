@@ -4,7 +4,7 @@ import {
   House, Search, CalendarRange, Tv, Clapperboard, Layers, Star, Settings, Play, Pause, RotateCcw, RotateCw,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, List, ListVideo, Captions, Volume2, VolumeX, Proportions,
   Gauge, Ellipsis, X, Info, RefreshCw, Trash2, Pencil, Check, FileText, History, Power, Plus, Minus, SkipForward,
-  SkipBack, ArrowUpDown, MonitorPlay, Clock3, Trophy, Heart, Undo2, EyeOff, Palette, Lock, SlidersHorizontal, Image, Gamepad2,
+  SkipBack, ArrowUpDown, MonitorPlay, Clock3, Trophy, Heart, Undo2, EyeOff, Palette, Lock, SlidersHorizontal, Image, Gamepad2, UserRound,
 } from 'lucide-preact';
 
 const MAP = {
@@ -14,7 +14,7 @@ const MAP = {
   left: ChevronLeft, right: ChevronRight, up: ChevronUp, down: ChevronDown, plus: Plus, minus: Minus,
   refresh: RefreshCw, trash: Trash2, edit: Pencil, check: Check, episodes: ListVideo, tv: MonitorPlay, file: FileText,
   info: Info, history: History, next: SkipForward, prev: SkipBack, power: Power, sort: ArrowUpDown, clock: Clock3, sports: Trophy, heart: Heart, last: Undo2, hidden: EyeOff,
-  palette: Palette, lock: Lock, sliders: SlidersHorizontal, image: Image, remote: Gamepad2,
+  palette: Palette, lock: Lock, sliders: SlidersHorizontal, image: Image, remote: Gamepad2, account: UserRound,
 } as const;
 
 export type IconName = keyof typeof MAP;

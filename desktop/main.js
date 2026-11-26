@@ -1,4 +1,4 @@
-// Matrix TV desktop shell (Windows, macOS, Linux).
+// Matrix 8K Player desktop shell (Windows, macOS, Linux).
 const { app, BrowserWindow, session, shell, ipcMain, net } = require('electron');
 const path = require('path');
 
@@ -18,7 +18,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 600,
     backgroundColor: '#0b0709',
-    title: 'Matrix TV',
+    title: 'Matrix 8K Player',
     icon: path.join(__dirname, '..', 'dist', 'brand', 'icon.png'),
     autoHideMenuBar: true,
     webPreferences: {

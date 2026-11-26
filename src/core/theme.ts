@@ -14,25 +14,30 @@ export interface Theme {
   backgroundImage?: string;
 }
 
-/** Flat blue: bright, simple and quick to draw on a TV stick. */
-export const DEFAULT_THEME: Theme = { name: 'Classic blue', accent: '#1d9bf0', background: '#2b2a9c', fontScale: 100, menu: 'solid' };
-/** The look before the Home redesign. Installs still on it move to the new default once. */
+/** Black and red, in the style of the viewer's earlier Galaxy app (charcoal tiles with coloured outlines). */
+export const DEFAULT_THEME: Theme = { name: 'Matrix black & red', accent: '#d3122a', background: '#0e0e0f', fontScale: 100, menu: 'solid' };
+/** Earlier defaults. Installs still on one of them, untouched, move to the current default once. */
 export const OLD_DEFAULT_THEME: Theme = { name: 'Matrix', accent: '#d3122a', background: '#0b0709', fontScale: 100, menu: 'solid' };
+const OLD_DEFAULTS: Theme[] = [OLD_DEFAULT_THEME, { name: 'Classic blue', accent: '#1d9bf0', background: '#2b2a9c', fontScale: 100, menu: 'solid' }];
 
 export const PRESETS: Theme[] = [
   DEFAULT_THEME,
+  { name: 'Galaxy gold', accent: '#ceb75a', background: '#0e0e0f', fontScale: 100, menu: 'solid' },
+  { name: 'Classic blue', accent: '#1d9bf0', background: '#2b2a9c', fontScale: 100, menu: 'solid' },
   { name: 'Matrix red', accent: '#d3122a', background: '#0b0709', fontScale: 100, menu: 'solid' },
   { name: 'Ocean', accent: '#1e7be0', background: '#060b14', fontScale: 100, menu: 'solid' },
   { name: 'Emerald', accent: '#12a36b', background: '#05100c', fontScale: 100, menu: 'solid' },
   { name: 'Gold', accent: '#c98a12', background: '#0e0b05', fontScale: 100, menu: 'solid' },
   { name: 'Violet', accent: '#7b4ce0', background: '#0b0814', fontScale: 100, menu: 'solid' },
   { name: 'Graphite', accent: '#8a94a6', background: '#0b0c0e', fontScale: 100, menu: 'solid' },
-  { name: 'Large text', accent: '#1d9bf0', background: '#2b2a9c', fontScale: 125, menu: 'solid' },
+  { name: 'Large text', accent: '#d3122a', background: '#0e0e0f', fontScale: 125, menu: 'solid' },
 ];
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const rgb = (h: string) => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')}`;
+/** Relative brightness, 0–1. */
+export function lum(h: string): number { const [r, g, b] = rgb(h); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; }
 /** Mixes a colour towards white (k > 0) or black (k < 0). */
 export function shade(h: string, k: number): string {
   const [r, g, b] = rgb(h);
@@ -52,6 +57,8 @@ export function themeVars(t: Theme): Record<string, string> {
     '--bg': bg, '--bg-2': shade(bg, 0.04), '--bg-3': shade(bg, 0.08), '--bg-4': shade(bg, 0.14), '--bg-lit': shade(bg, 0.16),
     // Secondary text tinted by the background, so it stays readable on light and dark themes alike.
     '--muted': shade(bg, 0.72), '--faint': shade(bg, 0.48),
+    // Text on the accent colour: dark on light accents (gold), white on dark ones.
+    '--on-accent': lum(a) > 0.45 ? '#111111' : '#ffffff',
   };
 }
 
@@ -92,6 +99,6 @@ export function importTheme(code: string): Theme | null {
 
 /** True for a saved theme that is just the old default (not one the viewer chose or edited). */
 export function isOldDefault(t: Partial<Theme> | undefined): boolean {
-  return !!t && t.name === OLD_DEFAULT_THEME.name && t.accent === OLD_DEFAULT_THEME.accent && t.background === OLD_DEFAULT_THEME.background
+  return !!t && OLD_DEFAULTS.some(o => t.name === o.name && t.accent === o.accent && t.background === o.background)
     && (t.fontScale ?? 100) === 100 && !t.backgroundImage;
 }

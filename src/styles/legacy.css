@@ -36,11 +36,17 @@
 .no-gap .vrow-meta > * + * { margin-top: 0.2rem; }
 .no-gap .prog-card > * + * { margin-top: 0.3rem; }
 /* Home tiles, the start-up table and the settings grid. */
-.no-gap .dash-row > * + * { margin-left: 1.2rem; }
-.no-gap .dash-tile > * + *, .no-gap .dash-small > * + * { margin-top: 0.4rem; }
+.no-gap .gx-big > * + * { margin-left: 1.8rem; }
+.no-gap .gx-foot-side > * + * { margin-left: 1rem; }
+.no-gap .gx-tools > * + * { margin-left: 0.6rem; }
+.no-gap .gx-expire > * + * { margin-top: 0.2rem; }
+.no-gap .gx-tile > * + * { margin-top: 0.35rem; }
 .no-gap .set-tile > * + * { margin-top: 0.8rem; }
 .no-gap .upd-line > * + *, .no-gap .settings-crumb > * + * { margin-left: 0.6rem; }
 .no-gap .settings-top > * + * { margin-left: 2rem; }
 .no-gap .chrow > * + * { margin-left: 0.8rem; }
 .no-gap .pv-top > * + * { margin-left: 1.1rem; }
 .no-gap .pv-info > * + * { margin-top: 0.35rem; }
+.no-gap .ch-tile > * + * { margin-top: 0.4rem; }
+.no-gap .ch-switch > * + * { margin-left: 0.6rem; }
+.no-gap .lb-bar-right > * + * { margin-left: 0.6rem; }

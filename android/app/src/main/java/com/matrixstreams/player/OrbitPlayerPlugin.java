@@ -1,4 +1,4 @@
-package tv.orbit.player;
+package com.matrixstreams.player;
 
 import android.graphics.Color;
 import android.net.Uri;

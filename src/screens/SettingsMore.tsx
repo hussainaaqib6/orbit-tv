@@ -112,7 +112,7 @@ export function Themes() {
     const c = exportTheme(t);
     openSheet(`Share ${t.name}`, () => (
       <div style={{ padding: '0 0.9rem 1rem' }}>
-        <p class="muted" style={{ marginBottom: '0.6rem' }}>Type this code into Matrix TV on another device (Colours & theme → Import), or scan it. It holds colours and text size only.</p>
+        <p class="muted" style={{ marginBottom: '0.6rem' }}>Type this code into Matrix 8K Player on another device (Colours & theme → Import), or scan it. It holds colours and text size only.</p>
         <div class="theme-code tnum">{c}</div>
         <div class="theme-qr" dangerouslySetInnerHTML={{ __html: renderSVG(c, { border: 1 }) }} />
         <SheetItem label="Done" autofocus onClick={closeAllSheets} />
@@ -171,7 +171,7 @@ export function Themes() {
         <input class="input" value={code} placeholder="MTV1-…" spellcheck={false} autocomplete="off" onInput={e => setCode((e.target as HTMLInputElement).value)} />
         <button class="btn" disabled={!code.trim()} onClick={() => {
           const t = importTheme(code);
-          if (!t) { toast("That isn't a Matrix TV theme code.", true); return; }
+          if (!t) { toast("That isn't a Matrix 8K Player theme code.", true); return; }
           setDraft(t); setCode(''); toast(`Imported ${t.name}: shown in the preview. Use or save it.`);
         }}>Import</button>
       </div>

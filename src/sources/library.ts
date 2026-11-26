@@ -108,8 +108,16 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 const savedSettings = store.get<Partial<Settings>>('settings', {});
-// The old red look was the default until the Home redesign; move installs that never changed it.
-if (isOldDefault(savedSettings.theme)) delete savedSettings.theme;
+// Earlier default looks: move installs that never changed theirs to the current default, once
+// (so a viewer who later picks an old look on purpose keeps it).
+const THEME_MOVE = 3;
+if ((store.get<number>('themeMove', 0)) < THEME_MOVE) {
+  if (isOldDefault(savedSettings.theme)) {
+    savedSettings.theme = DEFAULT_THEME;
+    store.set('settings', { ...store.get<Partial<Settings>>('settings', {}), theme: DEFAULT_THEME });
+  }
+  store.set('themeMove', THEME_MOVE);
+}
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...savedSettings });
 export function updateSettings(patch: Partial<Settings>) {
   settings.value = { ...settings.value, ...patch };

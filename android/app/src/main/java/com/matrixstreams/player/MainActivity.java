@@ -1,4 +1,4 @@
-package tv.orbit.player;
+package com.matrixstreams.player;
 
 import android.os.Bundle;
 import android.view.KeyEvent;

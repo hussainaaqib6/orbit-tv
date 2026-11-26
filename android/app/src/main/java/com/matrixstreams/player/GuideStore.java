@@ -1,4 +1,4 @@
-package tv.orbit.player;
+package com.matrixstreams.player;
 
 import android.content.Context;
 import android.database.Cursor;

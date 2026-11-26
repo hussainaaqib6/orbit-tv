@@ -1,15 +1,15 @@
-# Matrix TV
+# Matrix 8K Player
 
 An IPTV player for **Fire TV Stick, Android TV, Android phones, iPhone/iPad** and desktop (Windows, macOS, Linux). Bring your own provider: Orbit plays the channels, films and series from your own Xtream Codes login, M3U playlist or MAC portal. It comes with no content of its own.
 
-Version 2 is a rebuild. It has a remote-first interface built around a Home screen of big tiles (Live TV, TV Guide, Movies, Series), a native ExoPlayer engine on Android and Fire TV, and full player controls.
+Version 2 is a rebuild. It has a remote-first interface built around a Home screen of square outlined tiles in black and red (Live TV, VOD, Series, then TV Guide, Catch Up, Sports, Search, Settings, Reload and Account), a native ExoPlayer engine on Android and Fire TV, and full player controls.
 
 ---
 
 ## What it does
 
 **Live TV**
-- A plain list of channel names, with the preview top right, what's on now beside it and the schedule underneath. Left opens the categories.
+- Categories on the left with the channels as big logo tiles. Pick a tile and the mini screen plays it, with the category's channels listed beside it so you can switch while it plays; what's on now sits beside the mini screen and the schedule underneath. Left/Right switch category, Back returns to the tiles.
 - Full screen with OK. Up/Down change channel, Left opens the channel list over the picture, and number keys jump to a channel. Yellow goes back to the last channel.
 - Catch-up for Xtream servers and M3U `catchup` attributes. Hold OK on a channel and choose **Catch up**, or pick a past programme in the TV guide.
 
@@ -46,6 +46,7 @@ Version 2 is a rebuild. It has a remote-first interface built around a Home scre
 | Back | Up one level → Home → leave (asks first) | Hide controls → close player |
 | Left | Move | Channel list (live) / skip back (films) |
 | Up / Down | Move | Change channel (live) |
+| Left / Right (Live TV channel list) | Previous / next category | |
 | Rewind / Fast-forward | Page up / down | ±30 s (films) / change channel (live) |
 | Channel + / − | Page up / down | Change channel / next or previous episode |
 | Number keys | Jump to a channel number | Jump to a channel number |
@@ -116,7 +117,7 @@ src/
   screens/     Home, Live TV, TV guide, Movies/Series, details, Search, Favourites, Settings
   styles/      theme and player styles
 tests/         Vitest tests for parsers, subtitles, OpenSubtitles hash, navigation and keys
-android/app/src/main/java/tv/orbit/player/
+android/app/src/main/java/com/matrixstreams/player/
   OrbitPlayerPlugin.java   ExoPlayer behind the WebView, remote key forwarding
   MainActivity.java        hands remote keys to the plugin
 desktop/       Electron main process and preload
