@@ -1,9 +1,11 @@
-// Live TV, in the classic IPTV layout: a plain list of channel names on the left; on the right the
-// preview with the channel's details beside it and its schedule underneath. The categories column
-// slides in when you press Left from the list and goes away again when you go back into the list.
-// Rows are deliberately bare (number and name, no logos or progress bars) so scrolling stays smooth
-// on a TV stick. Browsing never changes channel: OK plays the highlighted channel in the preview,
-// and OK on the channel that is already playing makes it full screen.
+// Live TV, in two stages like a classic IPTV app:
+//  1. Browse: categories down the left, and the highlighted category's channels as a grid of big
+//     logo tiles on the right. Moving through the categories changes the grid.
+//  2. Channels: picking a tile opens the mini screen (preview) top right playing that channel, with
+//     the category's channels as a plain list on the left, so you can switch channels while it plays.
+//     The channel's details sit beside the mini screen and its schedule underneath.
+//     Left/Right in the list switch category; Back returns to the tiles.
+// OK on the channel already playing goes full screen; Back from full screen returns to the list.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
 import { catalog, favourites, recentChannels, itemIndex, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber, prefetchChannels } from '../sources/library';
@@ -12,16 +14,20 @@ import { isDivider, dividerLabel } from '../core/names';
 import { progress, indexAt } from '../sources/epg';
 import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
+import { VirtualGrid } from '../ui/VirtualGrid';
+import { Img } from '../ui/Img';
 import { Icon } from '../ui/icons';
 import { openItemMenu } from '../ui/cards';
 import { onAction } from '../nav/keys';
 import { focusEl } from '../nav/focus';
+import { goRoot } from '../nav/router';
 import { cleanChannelName } from '../core/names';
 import { clock } from '../core/format';
 import * as P from '../player/controller';
 import { toast } from '../ui/overlays';
 
 const FAV = '\u0001fav', RECENT = '\u0001recent', ALL = '\u0001all';
+type Stage = 'browse' | 'channels';
 
 export function Live({ initialGroup }: { initialGroup?: string }) {
   const all = catalog.value.live;
@@ -35,9 +41,12 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     for (const c of all) { let l = m.get(c.group); if (!l) m.set(c.group, (l = [])); l.push(c); }
     return m;
   }, [all]);
+  // Every category in menu order, for Left/Right in the channel list.
+  const catKeys = useMemo(() => [...(favs.length ? [FAV] : []), ...(recent.length ? [RECENT] : []), ALL, ...groups.map(g => g.name)], [favs.length, recent.length, groups]);
   const playing = P.current.value?.kind === 'live' ? P.current.value.channel : undefined;
   const playingKey = playing?.key;
 
+  const [stage, setStage] = useState<Stage>('browse');
   const [group, setGroup] = useState<string>(() => initialGroup ?? playing?.group ?? (favs.length ? FAV : groups[0]?.name ?? ALL));
   const chSort = (settings.value.sortByGroup[`live:${group}`] ?? 'default') as 'default' | 'az' | 'za' | 'watched';
   const list = useMemo(() => {
@@ -56,25 +65,22 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   const [hi, setHi] = useState<Channel | null>(null);
   const screen = useRef<HTMLDivElement>(null);
-  const cats = useRef<HTMLElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const hiTimer = useRef(0);
+  const catTimer = useRef(0);
   const typed = useRef({ text: '', timer: 0 });
   const listRef = useRef(list);
   listRef.current = list;
-  // Categories shown (browsing categories) or folded away (in the channel list). Toggled on the DOM
-  // directly so it never re-renders the screen.
-  const fold = (on: boolean) => screen.current?.firstElementChild?.classList.toggle('folded', on);
-  const toCategories = () => {
-    fold(false);
-    requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.cat.on') ?? screen.current!.querySelector<HTMLElement>('.cat')));
-  };
+  /** The channel picked from the tiles, played once the mini screen is on screen. */
+  const toPlay = useRef<Channel | null>(null);
+  /** The tile to focus when coming back to the tiles. */
+  const backTo = useRef<string | null>(null);
 
   const mini = settings.value.miniPlayer;
   const follows = mini && settings.value.previewFollows;
   const followTimer = useRef(0);
 
-  // Tell the player where the preview box is (there is none with the mini player switched off).
+  // Tell the player where the mini screen is. Leaving the channel list removes it, which stops the preview.
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -83,29 +89,26 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
       P.setPreviewRect({ x: r.left, y: r.top, width: r.width, height: r.height });
     };
     send();
+    const c = toPlay.current;
+    toPlay.current = null;
+    if (c) P.playChannel(c, { preview: true, channels: listRef.current });
     const ro = new ResizeObserver(send);
     ro.observe(el);
     return () => { ro.disconnect(); P.setPreviewRect(null); };
-  }, [mini]);
-
-  // Opening Live TV carries on with the last channel watched, in the preview.
-  useEffect(() => {
-    if (P.current.value || !mini) return;
-    const last = recent[0];
-    if (last) P.playChannel(last, { preview: true, channels: byGroup.get(last.group) ?? all });
-  }, []);
+  }, [mini, stage]);
 
   // When the channel changes (zapping in full screen), the details show the new one again.
   useEffect(() => { setHi(null); }, [playingKey]);
 
   // Guide data for the first screens of a list, fetched in one go when the list changes.
-  useEffect(() => { prefetchChannels(list.slice(Math.max(0, startIndex - 10), startIndex + 80)); }, [list]);
+  useEffect(() => { if (stage === 'channels') prefetchChannels(list.slice(Math.max(0, startIndex - 10), startIndex + 60)); }, [list, stage]);
 
-  // Where the list opens: on the playing channel. Worked out once per list so it doesn't jump about.
+  // Where the channel list opens: on the playing (or just picked) channel.
   const startIndex = useMemo(() => {
-    const i = list.findIndex(c => c.key === playingKey);
+    const key = toPlay.current?.key ?? playingKey;
+    const i = list.findIndex(c => c.key === key);
     return i >= 0 ? i : Math.max(0, list.findIndex(c => !isDivider(c.name)));
-  }, [list]);
+  }, [list, stage]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();
 
   // Coming back from full screen: focus goes to the channel that is playing, in this list.
@@ -118,14 +121,47 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     setJump({ index: Math.max(0, i), id: Date.now() });
   }, [P.mode.value]);
 
+  /** A tile was picked: open the channel list with the mini screen playing it. */
+  const openChannel = useCallback((c: Channel) => {
+    if (isDivider(c.name)) return;
+    setHi(c);
+    if (!settings.value.miniPlayer) { P.playChannel(c, { channels: listRef.current }); return; }
+    toPlay.current = c;
+    backTo.current = c.key;
+    setStage('channels');
+  }, []);
 
-  // OK: play in the preview; OK again on the playing channel: full screen.
+  /** Back from the channel list: the tiles again, on the channel you were on. */
+  const toTiles = useCallback(() => {
+    const k = P.current.value?.channel?.key ?? backTo.current;
+    backTo.current = k ?? null;
+    setStage('browse');
+  }, []);
+
+  // Arriving at the tiles: focus the tile we came from (or the selected category on first open).
+  useEffect(() => {
+    if (stage !== 'browse') return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const root = screen.current;
+      if (!root) return;
+      const k = backTo.current;
+      backTo.current = null;
+      const tile = k ? root.querySelector<HTMLElement>(`.ch-tile[data-key="${CSS.escape(k)}"]`) : null;
+      // First open: the categories. Coming back from the list: that channel's tile, or the first tile.
+      focusEl(tile ?? (k ? root.querySelector<HTMLElement>('.ch-tile') : null) ?? root.querySelector<HTMLElement>('.cat.on') ?? root.querySelector<HTMLElement>('.cat'));
+    }));
+  }, [stage]);
+  // Arriving at the channel list: focus the picked channel's row.
+  useEffect(() => {
+    if (stage === 'channels') requestAnimationFrame(() => setJump({ index: startIndex, id: Date.now() }));
+  }, [stage]);
+
+  // OK in the list: play in the mini screen; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
-    if (isDivider(c.name)) return; // a heading, not a channel
+    if (isDivider(c.name)) return;
     clearTimeout(hiTimer.current);
     clearTimeout(followTimer.current);
     setHi(c);
-    // Without the mini player, or when the preview already follows the highlight, OK goes full screen.
     if (!settings.value.miniPlayer) { P.playChannel(c, { channels: listRef.current }); return; }
     if (settings.value.previewFollows && P.current.value?.channel?.key !== c.key) { P.playChannel(c, { channels: listRef.current }); return; }
     if (P.current.value?.channel?.key === c.key && P.mode.value === 'preview' && !P.error.value) {
@@ -135,12 +171,10 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
       P.playChannel(c, { preview: true, channels: listRef.current });
     }
   }, []);
-  // The details pane follows the highlight a moment later, so fast scrolling stays smooth.
+  // The details follow the highlight a moment later, so fast scrolling stays smooth.
   const highlight = useCallback((c: Channel) => {
     clearTimeout(hiTimer.current);
     hiTimer.current = window.setTimeout(() => setHi(c), 180);
-    // Optional: the preview follows the highlight once scrolling stops, so fast scrolling never
-    // opens a stream for every channel passed.
     clearTimeout(followTimer.current);
     if (settings.value.miniPlayer && settings.value.previewFollows && !isDivider(c.name)) {
       followTimer.current = window.setTimeout(() => {
@@ -149,25 +183,15 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
       }, 900);
     }
   }, []);
-  useEffect(() => () => clearTimeout(followTimer.current), []);
+  useEffect(() => () => { clearTimeout(followTimer.current); clearTimeout(catTimer.current); clearTimeout(hiTimer.current); }, []);
 
-  // Right from the categories: switch to the highlighted category now (if it hasn't yet), then go
-  // into its list, at the playing channel if it is there.
-  // Categories only switch the list on OK or Right, never while scrolling through them, so moving
-  // up and down the categories costs nothing.
-  const pendingGroup = useRef<string | null>(null);
-  useEffect(() => onAction(cats.current!, a => {
-    if (a !== 'right') return;
-    const g = pendingGroup.current;
-    pendingGroup.current = null;
-    if (g !== null) setGroup(g);
-    fold(true);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
-      focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
-    }));
-    return true;
-  }), []);
+  // Left/Right in the channel list: previous/next category.
+  const stepCategory = (d: number) => {
+    const i = catKeys.indexOf(group);
+    const next = catKeys[(i + d + catKeys.length) % catKeys.length];
+    setGroup(next);
+    setJump({ index: 0, id: Date.now() });
+  };
 
   // Number keys jump to a channel number.
   useEffect(() => onAction(screen.current!, a => {
@@ -179,71 +203,64 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     t.timer = window.setTimeout(() => {
       const n = +t.text; t.text = '';
       const i = listRef.current.findIndex(c => numberOf(c) === n);
-      if (i >= 0) return setJump({ index: i, id: Date.now() });
+      if (i >= 0 && stage === 'channels') return setJump({ index: i, id: Date.now() });
       const c = channelByNumber(n);
       if (!c) return toast(`No channel ${n}`);
       setGroup(c.group);
+      openChannel(c);
     }, 1100);
     return true;
-  }), [all]);
-
-  const cat = (key: string, label: string, n: number) => (
-    <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => { pendingGroup.current = key === group ? null : key; }}
-      onClick={() => {
-        pendingGroup.current = null;
-        setGroup(key);
-        fold(true);
-        requestAnimationFrame(() => requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.chlist [data-index]'))));
-      }}>
-      <span class="clip">{label}</span><span class="n">{n}</span>
-    </button>
-  );
+  }), [all, stage]);
 
   const groupLabel = group === FAV ? 'Favourites' : group === RECENT ? 'Recently watched' : group === ALL ? 'All channels' : group;
-  const info = hi ?? playing ?? null;
   const showNumbers = settings.value.showNumbers;
 
+  if (stage === 'browse') {
+    return (
+      <div class="screen" ref={screen}>
+        <Browse
+          group={group} groupLabel={groupLabel} list={list} favs={favs.length} recent={recent.length} all={all.length} groups={groups}
+          sortLabel={CH_SORTS.find(x => x.id === chSort)!.label} onSort={cycleChSort}
+          onGroup={(key, now) => {
+            clearTimeout(catTimer.current);
+            if (now) setGroup(key);
+            else catTimer.current = window.setTimeout(() => setGroup(key), 250);
+          }}
+          onPick={openChannel} />
+      </div>
+    );
+  }
+
+  const info = hi ?? playing ?? null;
   return (
     <div class="screen" ref={screen}>
-      <div class="live folded">
-        <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={cats}>
-          <div class="cats-head"><h1>Live TV</h1></div>
-          <div class="cats-list">
-            {favs.length > 0 && cat(FAV, 'Favourites', favs.length)}
-            {recent.length > 0 && cat(RECENT, 'Recently watched', recent.length)}
-            {cat(ALL, 'All channels', all.length)}
-            <div class="cat-sep">Categories</div>
-            {groups.map(g => cat(g.name, g.name, g.count))}
-          </div>
-        </aside>
-
+      <div class="live">
         <section class="chlist">
-          <div class="chlist-head">
-            <Icon name="left" class="chlist-back" /><h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
-            <button class="chip small" onClick={cycleChSort} aria-label="Change order"><Icon name="sort" />{CH_SORTS.find(x => x.id === chSort)!.label}</button>
+          <div class="chlist-head ch-switch">
+            <Icon name="left" /><h2 class="clip">{groupLabel}</h2><Icon name="right" />
           </div>
           {list.length ? (
             <VirtualList items={list} rowRem={3} keyOf={c => c.key} startIndex={startIndex} jump={jump} navGroup="channels"
-              onFocusIndex={i => { highlight(list[i]); if (i % 20 === 0) prefetchChannels(list.slice(i, i + 80)); }}
+              onFocusIndex={i => { highlight(list[i]); if (i % 20 === 0) prefetchChannels(list.slice(i, i + 60)); }}
               onRowAction={(a, i) => {
-                if (a === 'back' || a === 'left') { toCategories(); return true; }
+                if (a === 'back') { toTiles(); return true; }
+                if (a === 'left') { stepCategory(-1); return true; }
+                if (a === 'right') { stepCategory(1); return true; }
                 if (a === 'hold-ok' || a === 'menu' || a === 'info') { openItemMenu(list[i]); return true; }
               }}
               render={(c, i) => <ChannelRow key={c.key} c={c} i={i} playing={c.key === playingKey} autofocus={i === startIndex} showNumbers={showNumbers} onHighlight={highlight} onChoose={choose} />} />
-          ) : <div class="empty"><p>No channels here yet.</p></div>}
+          ) : <EmptyList onBack={toTiles} />}
         </section>
 
         <section class="preview">
           <div class="pv-top">
-          {mini && (
-            <div class="preview-video" ref={box} onClick={() => playing && choose(playing)}>
-              {!P.current.value && <div class="pv-msg"><Icon name="live" /><span>{follows ? 'Highlight a channel to preview it' : 'Press OK on a channel to watch it here'}</span></div>}
-              {P.error.value && P.mode.value === 'preview' && <div class="pv-msg solid">{P.error.value}</div>}
-            </div>
-          )}
-          {/* The picture is drawn over the box, so a stream error is shown under it. */}
-          {info ? <NowInfo channel={info} isPlaying={info.key === playingKey && mini} /> : <div class="pv-info" />}
+            {mini && (
+              <div class="preview-video" ref={box} onClick={() => playing && choose(playing)}>
+                {!P.current.value && <div class="pv-msg"><Icon name="live" /><span>{follows ? 'Highlight a channel to preview it' : 'Press OK on a channel to watch it here'}</span></div>}
+                {P.error.value && P.mode.value === 'preview' && <div class="pv-msg solid">{P.error.value}</div>}
+              </div>
+            )}
+            {info ? <NowInfo channel={info} isPlaying={info.key === playingKey && mini} /> : <div class="pv-info" />}
           </div>
           {mini && P.error.value && P.mode.value === 'preview' && <p class="error-text pv-error">{P.error.value}</p>}
           {info && <Schedule channel={info} />}
@@ -252,6 +269,84 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     </div>
   );
 }
+
+function EmptyList({ onBack }: { onBack: () => void }) {
+  return <div class="empty"><p>No channels in this category.</p><button class="btn" data-autofocus onClick={onBack}>Back</button></div>;
+}
+
+/* ------------------------------ stage 1: categories and tiles ------------------------------ */
+
+interface BrowseProps {
+  group: string; groupLabel: string; list: Channel[]; favs: number; recent: number; all: number; groups: { name: string; count: number }[];
+  sortLabel: string; onSort: () => void; onGroup: (key: string, now: boolean) => void; onPick: (c: Channel) => void;
+}
+
+function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel, onSort, onGroup, onPick }: BrowseProps) {
+  const cats = useRef<HTMLElement>(null);
+  const grid = useRef<HTMLElement>(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(t); }, []);
+
+  const intoGrid = () => requestAnimationFrame(() => requestAnimationFrame(() => focusEl(grid.current?.querySelector<HTMLElement>('.ch-tile'))));
+  // Right from a category: open it now (if the grid hasn't caught up yet) and go into the tiles.
+  useEffect(() => onAction(cats.current!, a => {
+    if (a !== 'right') return;
+    const k = (document.activeElement as HTMLElement | null)?.dataset.cat;
+    if (k) onGroup(k, true);
+    intoGrid();
+    return true;
+  }), [onGroup]);
+  // Back in the tiles: up to the categories.
+  useEffect(() => onAction(grid.current!, a => {
+    if (a !== 'back') return;
+    focusEl(cats.current?.querySelector<HTMLElement>('.cat.on'));
+    return true;
+  }), []);
+
+  const cat = (key: string, label: string, n: number) => (
+    <button key={key} data-cat={key} class={`cat${group === key ? ' on' : ''}`} onFocus={() => onGroup(key, false)} onClick={() => { onGroup(key, true); intoGrid(); }}>
+      <span class="clip">{label}</span><span class="n">{n}</span>
+    </button>
+  );
+  return (
+    <div class="live-browse">
+      <aside class="cats" data-nav-group="cats" data-nav-scope="right" ref={cats}>
+        <div class="cats-head lb-clock">
+          <b class="tnum">{clock(now)}</b>
+          <span>{new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        </div>
+        <div class="cats-list">
+          {favs > 0 && cat(FAV, 'Favourites', favs)}
+          {recent > 0 && cat(RECENT, 'Recently watched', recent)}
+          {cat(ALL, 'All channels', all)}
+          {groups.map(g => cat(g.name, g.name, g.count))}
+        </div>
+      </aside>
+      <section class="lb-main" ref={grid}>
+        <div class="vod-head lb-head">
+          <h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
+          <button class="chip small" onClick={onSort} aria-label="Change order"><Icon name="sort" />{sortLabel}</button>
+          <button class="chip small" onClick={() => goRoot({ name: 'search' })} aria-label="Search"><Icon name="search" /></button>
+        </div>
+        {list.length
+          ? <VirtualGrid items={list} minRem={8.6} ratio={0.78} extraRem={2.7} keyOf={c => c.key} render={c => <ChannelTile c={c} onPick={onPick} />} />
+          : <div class="empty"><p>No channels in this category.</p></div>}
+      </section>
+    </div>
+  );
+}
+
+const ChannelTile = memo(function ChannelTile({ c, onPick }: { c: Channel; onPick: (c: Channel) => void }) {
+  const name = isDivider(c.name) ? dividerLabel(c.name) : cleanChannelName(c.name).name;
+  return (
+    <button class="ch-tile" data-key={c.key} onClick={() => onPick(c)} onContextMenu={e => { e.preventDefault(); openItemMenu(c); }}>
+      <span class="ch-tile-logo"><Img src={c.logo} alt={name} fit="contain" /></span>
+      <span class="ch-tile-name clamp2">{name}</span>
+    </button>
+  );
+});
+
+/* ------------------------------ stage 2: list, mini screen and schedule ------------------------------ */
 
 interface RowProps { c: Channel; i: number; playing: boolean; autofocus: boolean; showNumbers: boolean; onHighlight: (c: Channel) => void; onChoose: (c: Channel) => void }
 
@@ -282,7 +377,7 @@ function useMinuteTick() {
   useEffect(() => { const t = setInterval(() => tick(x => x + 1), 30000); return () => clearInterval(t); }, []);
 }
 
-/** Beside the preview: the channel, what's on now and how far through it is. */
+/** Beside the mini screen: the channel, what's on now and how far through it is. */
 function NowInfo({ channel, isPlaying }: { channel: Channel; isPlaying: boolean }) {
   useMinuteTick();
   const list = programmesFor(channel);
@@ -303,7 +398,7 @@ function NowInfo({ channel, isPlaying }: { channel: Channel; isPlaying: boolean 
   );
 }
 
-/** Under the preview: now and the next programmes, each with a line of description. */
+/** Under the mini screen: now and the next programmes, each with a line of description. */
 function Schedule({ channel }: { channel: Channel }) {
   useMinuteTick();
   const list = programmesFor(channel);

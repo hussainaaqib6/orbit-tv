@@ -9,7 +9,7 @@ Version 2 is a rebuild. It has a remote-first interface built around a Home scre
 ## What it does
 
 **Live TV**
-- A plain list of channel names, with the preview top right, what's on now beside it and the schedule underneath. Left opens the categories.
+- Categories on the left with the channels as big logo tiles. Pick a tile and the mini screen plays it, with the category's channels listed beside it so you can switch while it plays; what's on now sits beside the mini screen and the schedule underneath. Left/Right switch category, Back returns to the tiles.
 - Full screen with OK. Up/Down change channel, Left opens the channel list over the picture, and number keys jump to a channel. Yellow goes back to the last channel.
 - Catch-up for Xtream servers and M3U `catchup` attributes. Hold OK on a channel and choose **Catch up**, or pick a past programme in the TV guide.
 
@@ -46,6 +46,7 @@ Version 2 is a rebuild. It has a remote-first interface built around a Home scre
 | Back | Up one level → Home → leave (asks first) | Hide controls → close player |
 | Left | Move | Channel list (live) / skip back (films) |
 | Up / Down | Move | Change channel (live) |
+| Left / Right (Live TV channel list) | Previous / next category | |
 | Rewind / Fast-forward | Page up / down | ±30 s (films) / change channel (live) |
 | Channel + / − | Page up / down | Change channel / next or previous episode |
 | Number keys | Jump to a channel number | Jump to a channel number |

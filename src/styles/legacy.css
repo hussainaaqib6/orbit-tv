@@ -44,3 +44,5 @@
 .no-gap .chrow > * + * { margin-left: 0.8rem; }
 .no-gap .pv-top > * + * { margin-left: 1.1rem; }
 .no-gap .pv-info > * + * { margin-top: 0.35rem; }
+.no-gap .ch-tile > * + * { margin-top: 0.4rem; }
+.no-gap .ch-switch > * + * { margin-left: 0.6rem; }
