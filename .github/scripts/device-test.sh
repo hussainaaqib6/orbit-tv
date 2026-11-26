@@ -36,10 +36,10 @@ key BACK
 shot 10a-controls-hidden 1
 key BACK
 shot 10-back-to-preview 4
-# Holding Down: 25 fast presses, then where did focus end up.
+# Holding Down in the channel list: 25 fast presses.
 for i in $(seq 1 25); do adb shell input keyevent DPAD_DOWN; done
 shot 10b-after-fast-scroll 2
-# Films: Back to the categories, the menu, down to Movies, into the grid, open a film, play it.
+# Films: from the list, Back to categories, Back to the menu, down to Movies.
 key BACK BACK DPAD_DOWN DPAD_CENTER
 shot 11-movies 3
 key DPAD_RIGHT DPAD_CENTER
@@ -52,7 +52,7 @@ shot 14b-film-controls 1
 key BACK BACK
 shot 14c-film-closed 2
 # Menu reachability: Back to the menu and walk it; then Back shows "Leave?" with Stay selected.
-key BACK BACK BACK DPAD_UP DPAD_UP DPAD_UP DPAD_UP
+key BACK BACK DPAD_UP DPAD_UP DPAD_UP DPAD_UP DPAD_UP
 shot 15-menu-top 1
 key DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN
 shot 16-menu-bottom 1
@@ -61,4 +61,4 @@ shot 17-leave-dialog 1
 key DPAD_CENTER
 shot 18-after-ok-on-dialog 2
 adb logcat -d > "$out/logcat.txt"
-grep -E "OrbitPlayer|Capacitor/Console|ExoPlayer|MediaCodec|chromium" "$out/logcat.txt" | tail -300 > "$out/app-log.txt" || true
+grep -E "\[orbit\]|OrbitPlayer: layout|Error|error" "$out/logcat.txt" | grep -v "Notifying listeners" > "$out/app-log.txt" || true

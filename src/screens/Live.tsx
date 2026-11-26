@@ -67,6 +67,9 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     if (last) P.playChannel(last, { preview: true, channels: byGroup.get(last.group) ?? all });
   }, []);
 
+  // When the channel changes (zapping in full screen), the details show the new one again.
+  useEffect(() => { setHi(null); }, [playingKey]);
+
   // Where the list opens: on the playing channel. Worked out once per list so it doesn't jump about.
   const startIndex = useMemo(() => Math.max(0, list.findIndex(c => c.key === playingKey)), [list]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();

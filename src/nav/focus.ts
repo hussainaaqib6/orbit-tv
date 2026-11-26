@@ -165,8 +165,12 @@ function defaultAction(action: Action) {
   }
 }
 
+const describe = (el: Element | null) => !el || el === document.body ? 'body' : `${el.tagName.toLowerCase()}.${String(el.className).split(' ').join('.')} "${(el.textContent || '').trim().slice(0, 24)}"`;
+
 export function dispatch(action: Action, repeat = false) {
   if (!emitAction(action, repeat)) defaultAction(action);
+  // Only debug builds send console output to the Android log; the device test reads it.
+  if (!repeat) requestAnimationFrame(() => console.debug(`[orbit] ${action} -> ${describe(document.activeElement)}`));
 }
 
 /* ------------------------------ input wiring ------------------------------ */
