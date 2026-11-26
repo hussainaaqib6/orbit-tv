@@ -74,6 +74,17 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const startIndex = useMemo(() => Math.max(0, list.findIndex(c => c.key === playingKey)), [list]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();
 
+  // Coming back from full screen: focus goes to the channel that is playing, in this list.
+  const lastMode = useRef(P.mode.value);
+  useEffect(() => {
+    const was = lastMode.current;
+    lastMode.current = P.mode.value;
+    if (was !== 'full' || P.mode.value === 'full') return;
+    const i = listRef.current.findIndex(c => c.key === P.current.value?.channel?.key);
+    setJump({ index: Math.max(0, i), id: Date.now() });
+  }, [P.mode.value]);
+
+
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
     clearTimeout(hiTimer.current);

@@ -249,11 +249,13 @@ export function PlayerOverlay() {
     return () => {
       off(); pop(); closeAllSheets();
       // Back to where the viewer was (the channel row, the film page).
-      requestAnimationFrame(() => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const area = document.querySelector('.screen-area');
+        if (area?.contains(document.activeElement)) return; // the screen already chose (Live TV does)
         const r = P.returnFocus;
         if (r?.isConnected && !r.closest('[inert]')) focusEl(r);
-        else focusFirst(document.querySelector('.screen-area') ?? document.body);
-      });
+        else focusFirst(area ?? document.body);
+      }));
     };
   }, [full]);
 

@@ -220,6 +220,8 @@ export function installKeyHandling() {
   installed = true;
   document.addEventListener('keydown', onKeyDown, true);
   document.addEventListener('keyup', onKeyUp, true);
+  // Debug builds only (see dispatch): every focus change, to trace where focus goes.
+  document.addEventListener('focusin', e => console.debug(`[orbit] focus ${describe(e.target as Element)}`));
   // Right-click on desktop = hold OK.
   document.addEventListener('contextmenu', e => {
     if (!(e.target instanceof Element) || inTextField()) return;
