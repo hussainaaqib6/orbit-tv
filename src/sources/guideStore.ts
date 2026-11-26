@@ -57,10 +57,11 @@ async function flush() {
   ids.forEach(i => inFlight.add(i));
   try {
     const r = await OrbitPlayer.guideQuery({ ids, from: window_.from, to: window_.to });
-    const data = JSON.parse(r.json) as Record<string, [number, number, string, string][]>;
+    const data = JSON.parse(r.json) as Record<string, [number, number, string, string, string?, string?, string?, string?, string?][]>;
     for (const id of ids) {
       const rows = data[id] ?? [];
-      cache.set(id, rows.map(([start, stop, title, desc]) => ({ start, stop, title, desc })));
+      cache.set(id, rows.map(([start, stop, title, desc, sub, ep, cat, img, rating]) =>
+        ({ start, stop, title, desc, sub: sub || undefined, ep: ep || undefined, cat: cat || undefined, img: img || undefined, rating: rating || undefined })));
     }
     while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
   } catch (e) {

@@ -105,6 +105,16 @@ export interface Programme {
   stop: number;
   title: string;
   desc: string;
+  /** Episode title (XMLTV sub-title). */
+  sub?: string;
+  /** "S2 E5" from xmltv_ns, or the guide's own on-screen label. */
+  ep?: string;
+  /** First XMLTV category, e.g. "Football", "Drama". */
+  cat?: string;
+  /** Programme artwork URL (XMLTV icon). */
+  img?: string;
+  /** Age rating as the guide gives it, e.g. "15", "PG". */
+  rating?: string;
 }
 
 /** A thing the player can play. */

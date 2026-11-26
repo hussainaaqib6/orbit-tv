@@ -12,6 +12,9 @@ import { emptyGuide, guideIdFor, nowNext, parseXMLTV, wantedFor } from './epg';
 import { guide, programmesById, setMemoryGuide, useNativeGuide, memoryEntries, NATIVE_GUIDE } from './guideStore';
 import { OrbitPlayer } from '../core/native';
 import { setPart, resetParts, type Part } from './loadState';
+import { isHidden, isLocked, unlocked, type Kind } from './restrictions';
+import { DEFAULT_THEME, type Theme } from '../core/theme';
+import type { ShortcutTarget } from '../app/shortcuts';
 import type { Catalog, Channel, Item, Movie, Programme, Series, Source } from './types';
 
 /* ------------------------------ settings ------------------------------ */
@@ -61,6 +64,29 @@ export interface Settings {
   matchCards: 'classic' | 'big';
   /** Live Sports: only fixtures that have a stream in the playlist. */
   sportsMyChannels: boolean;
+  /** Categories hidden from view, as "live:UK | News", "movie:…", "series:…". */
+  hiddenGroups: string[];
+  /** Categories that need the PIN. */
+  lockedGroups: string[];
+  /** SHA-256 of the parental PIN ('' = no PIN). */
+  pinHash: string;
+  /** With a PIN: adult categories need it too. */
+  lockAdult: boolean;
+  /** With a PIN: Settings needs it. */
+  lockSettings: boolean;
+  /** Remote button -> job (Settings → Remote buttons). */
+  remoteMap: Partial<Record<string, ShortcutTarget>>;
+  /** Side menu: items in order, and items hidden. */
+  menuOrder: string[];
+  menuHidden: string[];
+  /** Films/series order: per kind, and per category when set for one category only. */
+  sortDefault: Record<string, string>;
+  sortByGroup: Record<string, string>;
+  /** Films/series view: 'grid' (posters), 'list' (poster and details), 'compact' (text rows). */
+  vodView: Record<string, 'grid' | 'list' | 'compact'>;
+  /** The theme in use, and the viewer's saved themes. */
+  theme: Theme;
+  themes: Theme[];
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -70,6 +96,9 @@ const DEFAULT_SETTINGS: Settings = {
   subSize: 100, subBackground: true, autoSubtitles: true, askBeforeExit: true, showNumbers: true, autoplayNext: true,
   miniPlayer: true, previewFollows: false, previewMuted: false, showFinishTime: true, recoveryDelay: 10, autoFailover: true,
   lastChannelButton: true, numbering: 'playlist', matchCards: 'classic', sportsMyChannels: false,
+  hiddenGroups: [], lockedGroups: [], pinHash: '', lockAdult: true, lockSettings: false,
+  remoteMap: {}, menuOrder: [], menuHidden: [], theme: DEFAULT_THEME, themes: [],
+  sortDefault: {}, sortByGroup: {}, vodView: {},
 };
 
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });
@@ -132,14 +161,26 @@ export function clearResume(key: string) {
 /* ------------------------------ catalogue ------------------------------ */
 
 const EMPTY: Catalog = { live: [], movies: [], series: [], epgUrls: [] };
-export const catalog = signal<Catalog>(EMPTY);
+/** Everything the playlists contain. Screens use `catalog`, which leaves out hidden and locked categories. */
+export const rawCatalog = signal<Catalog>(EMPTY);
+
+function filterCatalog(c: Catalog, hidden: boolean): Catalog {
+  const s = settings.value;
+  if (!s.hiddenGroups.length && !s.lockedGroups.length && !s.pinHash) return c;
+  const keep = (kind: Kind) => (x: { group: string }) => !isLocked(s, kind, x.group) && (!hidden || !isHidden(s, kind, x.group));
+  return { ...c, live: c.live.filter(keep('live')), movies: c.movies.filter(keep('movie')), series: c.series.filter(keep('series')) };
+}
+/** What can be browsed: no hidden or locked categories. */
+export const catalog = computed(() => { void unlocked.value; return filterCatalog(rawCatalog.value, true); });
+/** What can be reached at all (favourites from hidden categories stay reachable; locked ones don't). */
+export const reachable = computed(() => { void unlocked.value; return filterCatalog(rawCatalog.value, false); });
 export { guide, guideTick } from './guideStore';
 export const loading = signal<string>('');
 export const loaded = signal(false);
 
 export const itemIndex = computed(() => {
   const m = new Map<string, Item>();
-  const c = catalog.value;
+  const c = reachable.value;
   for (const x of c.live) m.set(x.key, x);
   for (const x of c.movies) m.set(x.key, x);
   for (const x of c.series) m.set(x.key, x);
@@ -263,7 +304,7 @@ export async function start(): Promise<void> {
   let cached: CacheBlob | undefined;
   try { cached = await cache.get<CacheBlob>('catalog'); } catch { cached = undefined; }
   if (cached?.catalog) {
-    batch(() => { catalog.value = cached!.catalog; loaded.value = true; });
+    batch(() => { rawCatalog.value = cached!.catalog; loaded.value = true; });
     markCatalogParts(cached.catalog, 'Up to date');
   }
   const fresh = (at: number | undefined) => !!at && Date.now() - at < settings.value.refreshHours * 3600e3;
@@ -340,7 +381,7 @@ async function reloadInner(gen: number): Promise<void> {
   const next: Catalog = { live, movies, series, epgUrls: [...epgUrls] };
   batch(() => {
     sources.value = list;
-    catalog.value = next;
+    rawCatalog.value = next;
     loaded.value = true;
     errors.value = errs;
     loading.value = '';
@@ -357,7 +398,7 @@ let guideGen = 0;
 
 export async function reloadGuide(): Promise<void> {
   const gen = ++guideGen;
-  const c = catalog.value;
+  const c = rawCatalog.value;
   const wanted = wantedFor(c.live, settings.value.epgMap);
   const urls = [...new Set([...c.epgUrls, ...settings.value.extraEpg.filter(Boolean)])];
   const errs: string[] = [];

@@ -36,6 +36,13 @@ export function xmlDecode(s: string): string {
     .trim();
 }
 
+/** xmltv_ns "1.4.0/1" (zero-based season.episode.part) -> "S2 E5". */
+export function episodeLabel(v: string): string {
+  const [se, ep] = v.trim().split('.');
+  const n = (x?: string) => { const k = parseInt((x ?? '').split('/')[0], 10); return isFinite(k) ? k + 1 : 0; };
+  return [n(se) ? `S${n(se)}` : '', n(ep) ? `E${n(ep)}` : ''].filter(Boolean).join(' ');
+}
+
 /** "20261125193000 +0100" -> epoch ms */
 export function xmltvDate(s: string): number {
   const m = /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)?\s*([+-]\d{4})?/.exec(s.trim());
@@ -92,11 +99,25 @@ export function parseXMLTV(text: string, guide: Guide, o: ParseOptions = {}): nu
     if (!(stop > min && start < max)) continue;
     const ch = xmlDecode(attr(a, 'channel'));
     if (o.wanted && !keep.has(ch) && !o.wanted.ids.has(ch.toLowerCase())) continue;
-    const title = /<title[^>]*>([\s\S]*?)<\/title>/.exec(m[2]);
-    const desc = /<desc[^>]*>([\s\S]*?)<\/desc>/.exec(m[2]);
+    const body = m[2];
+    const title = /<title[^>]*>([\s\S]*?)<\/title>/.exec(body);
+    const desc = /<desc[^>]*>([\s\S]*?)<\/desc>/.exec(body);
+    const sub = /<sub-title[^>]*>([\s\S]*?)<\/sub-title>/.exec(body);
+    const cat = /<category[^>]*>([\s\S]*?)<\/category>/.exec(body);
+    const icon = /<icon\s[^>]*src="([^"]*)"/.exec(body);
+    const rating = /<rating[^>]*>[\s\S]*?<value>([\s\S]*?)<\/value>/.exec(body);
+    const epNs = /<episode-num[^>]*system="xmltv_ns"[^>]*>([\s\S]*?)<\/episode-num>/.exec(body);
+    const epAny = /<episode-num[^>]*>([\s\S]*?)<\/episode-num>/.exec(body);
+    const ep = epNs ? episodeLabel(xmlDecode(epNs[1])) : epAny ? xmlDecode(epAny[1]) : '';
     let list = guide.programmes.get(ch);
     if (!list) guide.programmes.set(ch, (list = []));
-    list.push({ start, stop, title: xmlDecode(title ? title[1] : '') || 'Untitled', desc: xmlDecode(desc ? desc[1] : '') });
+    const p: Programme = { start, stop, title: xmlDecode(title ? title[1] : '') || 'Untitled', desc: xmlDecode(desc ? desc[1] : '') };
+    if (sub) p.sub = xmlDecode(sub[1]);
+    if (ep) p.ep = ep;
+    if (cat) p.cat = xmlDecode(cat[1]);
+    if (icon) p.img = xmlDecode(icon[1]);
+    if (rating) p.rating = xmlDecode(rating[1]);
+    list.push(p);
     touched.add(list);
     guide.ids.set(ch.toLowerCase(), ch);
     count++;

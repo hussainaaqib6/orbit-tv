@@ -3,7 +3,7 @@
 // Arrows move · OK watches (now), plays catch-up (past) or shows details (later) · hold OK: options ·
 // Channel +/−: a page of channels · Rewind/Fast-forward: a day back/forward.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { catalog, favourites, itemIndex, programmesFor, groupsOf, numberOf } from '../sources/library';
+import { catalog, favourites, itemIndex, programmesFor, groupsOf, numberOf, settings } from '../sources/library';
 import { indexAt } from '../sources/epg';
 import { canCatchup } from '../sources/catchup';
 import type { Channel, Programme } from '../sources/types';
@@ -16,6 +16,7 @@ import { clock, dayLabel } from '../core/format';
 import { cleanChannelName } from '../core/names';
 import * as P from '../player/controller';
 import { catchupPlayable } from '../player/playables';
+import { ProgrammeMeta, ProgrammeImage } from '../ui/programme';
 
 const HALF_HOUR = 30 * 60e3;
 const SPAN = 2.5 * 3600e3; // visible time
@@ -24,6 +25,14 @@ const alignHalf = (t: number) => Math.floor(t / HALF_HOUR) * HALF_HOUR;
 const FAV = '\u0001fav', ALL = '\u0001all';
 
 interface Cursor { row: number; time: number }
+
+/** Local midnights between a and b (where a new day starts on screen). */
+function midnights(a: number, b: number): number[] {
+  const out: number[] = [];
+  const d = new Date(a); d.setHours(24, 0, 0, 0);
+  for (let t = d.getTime(); t < b; t += 86400e3) out.push(t);
+  return out;
+}
 
 /** Programme at `t` in a row, or a filler block when the guide has a gap. */
 function blockAt(list: Programme[], t: number): Programme {
@@ -61,12 +70,49 @@ export function Guide() {
   }, []);
   useEffect(() => { setCur({ row: 0, time: Math.max(Date.now(), t0) }); setTopRow(0); }, [rows]);
 
+  // Preview box (top right), as in Live TV.
+  const mini = settings.value.miniPlayer;
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const send = () => { const r = el.getBoundingClientRect(); P.setPreviewRect({ x: r.left, y: r.top, width: r.width, height: r.height }); };
+    send();
+    const ro = new ResizeObserver(send);
+    ro.observe(el);
+    return () => { ro.disconnect(); P.setPreviewRect(null); };
+  }, [mini]);
+  // Optional: the preview follows the highlighted channel once you stop moving.
+  useEffect(() => {
+    if (!mini || !settings.value.previewFollows) return;
+    const c = rows[cur.row];
+    if (!c || P.current.value?.channel?.key === c.key || P.mode.value === 'full') return;
+    const t = setTimeout(() => P.playChannel(c, { preview: true, channels: rows }), 900);
+    return () => clearTimeout(t);
+  }, [cur.row, rows]);
+  // Back from full screen: the cursor goes to the channel that was playing, at its programme now.
+  const lastMode = useRef(P.mode.value);
+  useEffect(() => {
+    const was = lastMode.current;
+    lastMode.current = P.mode.value;
+    if (was !== 'full' || P.mode.value === 'full') return;
+    const key = P.current.value?.channel?.key;
+    const i = key ? rows.findIndex(c => c.key === key) : -1;
+    if (i >= 0) {
+      setCur({ row: i, time: Date.now() });
+      setTopRow(Math.max(0, i - 2));
+      setT0(alignHalf(Date.now()) - HALF_HOUR);
+    }
+    requestAnimationFrame(() => grid.current?.focus());
+  }, [P.mode.value]);
+
   const visibleRows = Math.max(1, Math.floor(size.h / size.row));
   const trackW = size.w - size.ch;
   const pxPerMs = trackW / SPAN;
   const t1 = t0 + SPAN;
   const now = Date.now();
-  const minT = alignHalf(now - 7 * 86400e3), maxT = alignHalf(now + 7 * 86400e3);
+  // The guide keeps two days back and four ahead (see library.ts GUIDE_BACK/AHEAD).
+  const minT = alignHalf(now - 2 * 86400e3), maxT = alignHalf(now + 4 * 86400e3);
 
   const focusedChannel = rows[cur.row];
   const focusedProg = focusedChannel ? blockAt(programmesFor(focusedChannel), cur.time) : null;
@@ -81,11 +127,21 @@ export function Guide() {
   };
 
   const act = (p: Programme, c: Channel) => {
-    if (p.start <= now && p.stop > now || p.title === 'No guide information') { P.playChannel(c, { channels: rows }); return; }
+    if (p.start <= now && p.stop > now || p.title === 'No guide information') {
+      // With the preview box: OK plays it there, OK again goes full screen.
+      if (mini && !(P.current.value?.channel?.key === c.key && P.mode.value === 'preview' && !P.error.value)) P.playChannel(c, { preview: true, channels: rows });
+      else if (mini) { P.channelList.value = rows; P.enterFull(); }
+      else P.playChannel(c, { channels: rows });
+      return;
+    }
     if (p.stop <= now && canCatchup(c, p, now)) { const x = catchupPlayable(c, p); if (x) { P.play(x); return; } }
     openSheet(p.title, () => (
       <>
-        <p style={{ padding: '0 0.9rem 1rem', color: 'var(--muted)' }}>{p.desc || 'No description.'}</p>
+        <div style={{ padding: '0 0.9rem 1rem' }}>
+          <ProgrammeImage p={p} class="wide" />
+          <ProgrammeMeta p={p} />
+          <p style={{ color: 'var(--muted)', marginTop: '0.5rem' }}>{p.desc || 'No description.'}</p>
+        </div>
         <SheetItem icon={<Icon name="play" />} label={`Watch ${c.name} now`} autofocus onClick={() => { closeAllSheets(); P.playChannel(c, { channels: rows }); }} />
       </>
     ), `${c.name} · ${dayLabel(p.start)} ${clock(p.start)} – ${clock(p.stop)}`);
@@ -127,6 +183,25 @@ export function Guide() {
     }
   }), [rows, cur, t0, size]);
 
+  const chooseDay = () => {
+    const days: number[] = [];
+    const start = new Date(minT); start.setHours(0, 0, 0, 0);
+    for (let d = start.getTime(); d <= maxT; d += 86400e3) days.push(d);
+    const curDay = new Date(cur.time); curDay.setHours(0, 0, 0, 0);
+    openSheet('Go to day', () => <>{days.map(d => (
+      <SheetItem key={d} label={dayLabel(d + 12 * 3600e3)} checked={d === curDay.getTime()} autofocus={d === curDay.getTime()}
+        onClick={() => {
+          closeAllSheets();
+          const isToday = d === new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+          // Today: now. Other days: the evening (where most people look), or the same time of day.
+          const t = isToday ? Date.now() : d + (new Date(cur.time).getHours() * 3600e3 || 19 * 3600e3);
+          setT0(alignHalf(t) - HALF_HOUR);
+          setCur(c => ({ ...c, time: Math.max(minT, Math.min(maxT, t)) }));
+          requestAnimationFrame(() => grid.current?.focus());
+        }} />
+    ))}</>);
+  };
+
   const shiftDay = (n: number) => {
     const t = Math.max(minT, Math.min(maxT, cur.time + n * 86400e3));
     setT0(alignHalf(t) - HALF_HOUR);
@@ -153,27 +228,30 @@ export function Guide() {
           <h1>TV Guide</h1>
           <button class="chip" onClick={chooseCategory}><Icon name="list" />{groupLabel}</button>
           <button class="chip" onClick={() => shiftDay(-1)} aria-label="Previous day"><Icon name="left" /></button>
-          <span class="tnum" style={{ minWidth: '7rem', textAlign: 'center', fontWeight: 650 }}>{dayLabel(cur.time)}</span>
+          <button class="chip tnum" style={{ minWidth: '8rem', justifyContent: 'center' }} onClick={chooseDay} aria-label="Go to day">{dayLabel(cur.time)}</button>
           <button class="chip" onClick={() => shiftDay(1)} aria-label="Next day"><Icon name="right" /></button>
           <button class="chip" onClick={goNow}>Now</button>
         </div>
-        <div class="guide-detail">
+        <div class={`guide-detail${mini ? " has-preview" : ""}`}>
           {focusedProg && focusedChannel ? (
             <>
               <div>
                 <div class="when">{cleanChannelName(focusedChannel.name).name}  ·  {dayLabel(focusedProg.start)} {clock(focusedProg.start)} – {clock(focusedProg.stop)}
                   {focusedProg.stop <= now && canCatchup(focusedChannel, focusedProg, now) ? '  ·  Catch-up available' : ''}</div>
                 <h2 class="clip">{focusedProg.title}</h2>
+                <ProgrammeMeta p={focusedProg} />
                 {focusedProg.desc && <p class="clamp2">{focusedProg.desc}</p>}
               </div>
             </>
           ) : <div class="muted">{rows.length ? '' : 'No channels in this category.'}</div>}
+          {mini && <div class="guide-preview" ref={box}>{!P.current.value && <span class="pv-msg"><Icon name="live" /><span>OK on a programme on now plays it here</span></span>}</div>}
         </div>
         <div class="guide-grid" ref={grid} tabIndex={0} data-autofocus aria-label="TV guide">
           <div class="guide-ruler">
             <div style={{ width: `${size.ch}px`, flex: 'none' }} />
             <div style={{ position: 'relative', flex: 1 }}>
               {ticks.map(t => <div key={t} class="tick" style={{ left: `${(t - t0) * pxPerMs}px` }}>{clock(t)}</div>)}
+              {midnights(t0, t1).map(t => <div key={`d${t}`} class="daymark" style={{ left: `${(t - t0) * pxPerMs}px` }}>{dayLabel(t + 3600e3)}</div>)}
             </div>
           </div>
           <div style={{ position: 'relative', height: `${size.h}px`, overflow: 'hidden' }}>
@@ -209,6 +287,7 @@ export function Guide() {
                 </div>
               );
             })}
+            {midnights(t0, t1).map(t => <div key={`m${t}`} class="dayline" style={{ left: `${size.ch + (t - t0) * pxPerMs}px` }} />)}
             {now >= t0 && now < t1 && <div class="nowline" style={{ left: `${size.ch + (now - t0) * pxPerMs}px` }} />}
           </div>
         </div>

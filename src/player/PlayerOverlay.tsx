@@ -22,7 +22,9 @@ import { clock, duration as fmt } from '../core/format';
 import { cueHtml } from '../services/subtitles';
 import { cleanChannelName } from '../core/names';
 import { goRoot } from '../nav/router';
+import { runShortcut } from '../app/shortcuts';
 import type { Channel } from '../sources/types';
+import { ProgrammeMeta } from '../ui/programme';
 
 const controls = signal(false);
 const panel = signal(false);
@@ -70,8 +72,25 @@ function enterDigit(d: string) {
   }, 1400);
 }
 
+/** A remote button the viewer gave a job (Settings → Remote buttons) does that job in the player too. */
+function mappedAction(a: Action): boolean {
+  const t = settings.value.remoteMap[a];
+  if (!t || t === 'none') return false;
+  return runShortcut(t, {
+    last: () => P.lastChannel(), recent: () => { P.exitFull(); goRoot({ name: 'live', group: '\u0001recent' }); },
+    player: x => {
+      if (x === 'subtitles') { openSubtitles(); return true; }
+      if (x === 'audio') { openAudio(); return true; }
+      if (x === 'player-options') { openOptions(); return true; }
+      if (x !== 'last' && x !== 'recent') P.exitFull(); // leaving the player for another screen
+      return false;
+    },
+  });
+}
+
 /** Keys that work whether or not the controls are showing. */
 function globalAction(a: Action): boolean {
+  if (mappedAction(a)) return true;
   const live = P.isLive.value;
   const cur = P.current.value;
   if (a.startsWith('digit')) { if (live) enterDigit(a.slice(5)); return true; }
@@ -178,6 +197,7 @@ function LiveStrip({ channel }: { channel: Channel }) {
           <>
             <div class="when tnum"><span class="dot-live" />{clock(now.start)} – {clock(now.stop)}</div>
             <div class="p-prog">{now.title}</div>
+            <ProgrammeMeta p={now} />
             <div class="livebar"><i style={{ width: `${progress(now) * 100}%` }} /></div>
             {now.desc && <p class="p-desc clamp2">{now.desc}</p>}
           </>

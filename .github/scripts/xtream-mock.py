@@ -86,6 +86,10 @@ def make_guide(path):
             for h in range(hours):
                 rows.append(f'  <programme start="{stamps[h]}" stop="{stamps[h + 1]}" channel="{cid}">\n'
                             f'    <title lang="en">Programme {h} on {cid}</title>\n'
+                            f'    <sub-title>Episode title {h}</sub-title>\n'
+                            f'    <category lang="en">{("Drama", "News", "Football", "Documentary")[h % 4]}</category>\n'
+                            f'    <episode-num system="xmltv_ns">{h % 5}.{h % 12}.</episode-num>\n'
+                            f'    <rating system="BBFC"><value>{("U", "PG", "12", "15")[h % 4]}</value></rating>\n'
                             f'    <desc lang="en">A programme description long enough to look like the real thing, '
                             f'with a sentence or two about what happens &amp; who is in it.</desc>\n  </programme>\n')
             f.write(''.join(rows))

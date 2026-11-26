@@ -10,11 +10,17 @@ import { lastChannel, lastChannelTarget } from '../player/controller';
 import { cleanChannelName } from '../core/names';
 
 interface Entry { name: RootName; label: string; icon: IconName }
-const GROUPS: Entry[][] = [
-  [{ name: 'home', label: 'Home', icon: 'home' }, { name: 'search', label: 'Search', icon: 'search' }, { name: 'guide', label: 'TV Guide', icon: 'guide' }],
-  [{ name: 'live', label: 'Live TV', icon: 'live' }, { name: 'sports', label: 'Live Sports', icon: 'sports' }, { name: 'movies', label: 'Movies', icon: 'movies' }, { name: 'series', label: 'Series', icon: 'series' }],
-  [{ name: 'favourites', label: 'Favourites', icon: 'heart' }],
+/** The menu as it comes; Settings → Side menu can reorder and hide items (Home always stays). */
+export const MENU_ITEMS: Entry[] = [
+  { name: 'home', label: 'Home', icon: 'home' }, { name: 'search', label: 'Search', icon: 'search' }, { name: 'guide', label: 'TV Guide', icon: 'guide' },
+  { name: 'live', label: 'Live TV', icon: 'live' }, { name: 'sports', label: 'Live Sports', icon: 'sports' }, { name: 'movies', label: 'Movies', icon: 'movies' },
+  { name: 'series', label: 'Series', icon: 'series' }, { name: 'favourites', label: 'Favourites', icon: 'heart' },
 ];
+/** Menu items in the viewer's order (new items they haven't placed go at the end). */
+export function menuEntries(order: string[]): Entry[] {
+  const rank = (n: string) => { const i = order.indexOf(n); return i < 0 ? 100 + MENU_ITEMS.findIndex(e => e.name === n) : i; };
+  return [...MENU_ITEMS].sort((a, b) => rank(a.name) - rank(b.name));
+}
 
 const rootOf = (r: Route): RootName => (r.name === 'movie' ? 'movies' : r.name === 'show' ? 'series' : r.name);
 
@@ -58,7 +64,7 @@ export function Rail() {
     <nav class={`rail${open ? ' open' : ''}`} ref={ref} aria-label="Main menu" data-nav-group="rail" data-nav-scope="right">
       <div class="rail-panel">
         <div class="rail-brand"><Monogram /><Wordmark class="rail-word" /></div>
-        {GROUPS.map((g, i) => [i > 0 && <div class="rail-sep" key={`s${i}`} />, ...g.map(item)])}
+        {menuEntries(settings.value.menuOrder).filter(e => e.name === 'home' || !settings.value.menuHidden.includes(e.name)).map(item)}
         {settings.value.lastChannelButton && recentChannels.value.length > 0 && <LastChannelItem />}
         <div class="rail-grow" />
         {item({ name: 'settings', label: 'Settings', icon: 'settings' })}

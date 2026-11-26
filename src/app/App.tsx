@@ -4,8 +4,11 @@ import { route, pop } from '../nav/router';
 import { setBaseBack, setShortcutHandler, handleNativeKey, installKeyHandling } from '../nav/focus';
 import { lastChannel } from '../player/controller';
 import { goRoot } from '../nav/router';
+import { runShortcut, DEFAULT_MAP } from './shortcuts';
+import { applyTheme } from '../core/theme';
 import { Rail, focusRail, focusScreen } from './Rail';
 import { Sheets, Dialog, Toasts, confirmDialog } from '../ui/overlays';
+import { PinPad } from '../ui/pin';
 import { PlayerOverlay } from '../player/PlayerOverlay';
 import { mode } from '../player/controller';
 import { loading, loaded, sources, settings } from '../sources/library';
@@ -57,12 +60,12 @@ export function App() {
       if (!document.activeElement?.closest('.rail')) focusRail();
       else exitApp();
     });
-    // Remote shortcuts that work from any screen.
+    // Remote shortcuts that work from any screen (Settings → Remote buttons).
     setShortcutHandler(a => {
       if (booting.value) return;
-      if (a === 'last' || a === 'yellow') lastChannel();
-      else if (a === 'guide') goRoot({ name: 'guide' });
-      else if (a === 'search') goRoot({ name: 'search' });
+      if (a === 'last') { lastChannel(); return; }
+      const t = { ...DEFAULT_MAP, ...settings.value.remoteMap }[a];
+      if (t) runShortcut(t, { last: lastChannel, recent: () => goRoot({ name: 'live', group: '\u0001recent' }) });
     });
     if (PLATFORM === 'android') {
       const h = OrbitPlayer.addListener('key', e => handleNativeKey(e.key, e.action, e.repeat));
@@ -71,6 +74,8 @@ export function App() {
   }, []);
 
   const noSources = !sources.value.length;
+  // The viewer's theme (Settings → Colours & theme).
+  useEffect(() => { applyTheme(settings.value.theme); }, [settings.value.theme]);
 
   // Put focus into each new screen (unless the player is full screen), and after the first load.
   useEffect(() => {
@@ -90,6 +95,7 @@ export function App() {
       <PlayerOverlay />
       <Sheets />
       <Dialog />
+      <PinPad />
       <Toasts />
       {loading.value && !booting.value && <div class="status-pill"><span class="spinner" />{loading.value}</div>}
     </>

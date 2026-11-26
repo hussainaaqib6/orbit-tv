@@ -45,18 +45,18 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 
 | # | Feature | Status | Platforms | Notes |
 |---|---|---|---|---|
-| 2 | Mini player (preview, follow highlight with debounce, mute, on/off) | Implemented | FTV, Desk | **This batch.** Settings → Appearance. "Edit TV Channels" entry point not yet (no channel editor exists). TV Guide preview not yet. |
+| 2 | Mini player (preview, follow highlight with debounce, mute, on/off) | Implemented | FTV, Desk | Settings → Appearance. **2b:** TV Guide preview box (top right), follows the highlight if set. "Edit TV Channels" entry point not yet (no channel editor exists). |
 | 8 | Searchable settings | Implemented | All | **This batch.** Keyword + synonym search, jumps to and highlights the setting. Voice works through the TV keyboard's mic. |
 | 11 | Estimated finish time | Implemented | All | **This batch.** Follows pause, skips and speed. |
 | 20 | Last Channel | Implemented | All | **This batch.** Remote Last/Yellow from any screen, side-menu shortcut, player option, swaps between the two most recent. |
-| 21 | Remote button customisation | Not Started | | |
-| 22 | Advanced side menu | Partially Implemented | All | Labels on focus exist. Not yet: reorder/hide items, auto-open. |
+| 21 | Remote button customisation | Implemented | All | **2b.** Colour, Guide, Search, Bookmark and (outside the player) Play/Pause/FF/RW buttons → 14 jobs; works in the player too; shared-job warning; restore defaults. Long-press mapping not yet. |
+| 22 | Advanced side menu | Partially Implemented | All | **2b:** reorder and hide items. Not yet: auto-open on highlight. |
 | 23 | Universal search | Partially Implemented | All | Channels/films/series. Not yet: actors, programmes, teams, rows view. |
-| 24 | Enhanced TV Guide navigation | Partially Implemented | All | Grid, day jump with Rewind/FF, focus on return. Guide data now 4 days ahead. Not yet: date markers, jump to date, recording indicators. |
+| 24 | Enhanced TV Guide navigation | Implemented | All | **2b:** day markers at midnight, Go to day, Now, focus returns to the playing channel and its programme. Recording indicators wait for recording. |
 | 25 | Channel numbering (playlist / favourites first) | Implemented | All | **This batch.** Custom per-channel numbers not yet. |
 | 26 | Visual improvements, reduced-motion mode | Partially Implemented | All | |
-| 37 | Favourites as red hearts | Implemented | All | **This batch.** Hidden-category marker waits for hidden categories (41/42). |
-| 41 | Per-category sorting | Not Started | | |
+| 37 | Favourites as red hearts | Implemented | All | **2b:** favourites from hidden categories stay, with a crossed-out eye and a Show this category action. Sync waits for accounts. |
+| 41 | Per-category sorting | Implemented | All | **2b.** Films/series: Recently added, Playlist order, A–Z, Z–A, Rating, Release year, Recently watched, Playlist then A–Z; for all or this category only. Channels: Playlist order, A–Z, Z–A, Recently watched, per category. Most watched / custom order not yet. |
 | 42 | Country/language/quality filters | Not Started | | |
 | 56 | Linked channel versions | Partially Implemented | FTV, Desk | **This batch:** automatic suggestions (up to 32) used for failover and offered in player options. Manual linking/preferred source not yet. |
 | 57 | Subtitles (OpenSubtitles, offset, size, background) | Implemented | All | Language list as per spec not yet confirmed. |
@@ -80,12 +80,12 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 4 | Custom themes, sharing codes, links, QR | Not Started | Local themes and code import/export can be done without a server; links/sync need one. |
+| 4 | Custom themes, sharing codes, links, QR | Partially Implemented | **2b:** 7 presets, own colours/background/text size/menu style, preview, save/rename/duplicate/delete, share as a code + QR, import (appearance-only, validated), restore Matrix. Links and sync need a backend. |
 | 5 | Device templates | Blocked | Needs accounts. |
 | 10 | Cross-profile sharing | Blocked | Needs accounts/profiles. |
 | 43 | New-device playlist selection | Blocked | Needs accounts. |
 | 63 | Account and cross-device sync | Blocked | Needs a backend service. |
-| 65 | Parental controls (PIN, restrictions) | Not Started | Can be done per device first. |
+| 65 | Parental controls (PIN, restrictions) | Implemented | **2b.** Per device: 4-digit PIN (stored hashed), hide or PIN-lock any category, adult categories locked, Settings lock, Lock now. Locked content is removed from every route (lists, search, guide, sports, favourites, numbers). Profiles/age ratings wait for accounts. |
 
 ## Phase 5 – Recording (needs storage/server)
 
@@ -112,8 +112,8 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 
 | # | Feature | Status | Notes |
 |---|---|---|---|
-| 9 | Enhanced EPG metadata (icons, episode numbers, categories) | Not Started | Next: store `<icon>`, `<sub-title>`, `<episode-num>`, `<category>` in GuideStore. |
-| 33 | Grid and list views | Not Started | |
+| 9 | Enhanced EPG metadata | Implemented | **2b.** Artwork, episode (S/E), episode title, category and age rating stored natively and shown in Live TV, the guide and the player. Cast/release date not yet. |
+| 33 | Grid and list views | Implemented | **2b.** Posters, Detailed list (poster, year, rating, category, plot for series), Compact list; per kind. Landscape cards not yet. |
 | 34 | Custom Home rows | Partially Implemented | Continue watching, new films/series rows exist; not configurable. |
 | 35 | Plex / Jellyfin / Emby | Not Started | Jellyfin/Emby need only the user's server; Plex needs a Plex account sign-in. |
 | 36 | External ratings (IMDb, RT…) | Blocked | TMDB works with a key; IMDb/RT/Metacritic need licensed data (e.g. OMDb key, MDBList). |
@@ -145,3 +145,4 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 |---|---|---|
 | Crash fix + start-up + Live Sports + branding | #7 | Native guide database, start-up boxes, Live Sports tab, Matrix TV logo |
 | Phase 2a | #8 | Stream recovery + failover, channel versions, Last Channel, finish time, mini-player options, favourites numbering, connection counts, hearts, settings search, Big match cards, My Channels Only, more competitions, sports match exclusions |
+| Phase 2b | #9 | Guide details and navigation, guide preview, hidden categories, parental controls, sorting, list views, remote buttons, side menu, themes |
