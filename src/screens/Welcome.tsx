@@ -1,7 +1,8 @@
 // First run. Step one: pick how to add a playlist (or scan the QR code with a phone).
 // Step two: type the details with the remote.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { OrbitMark, Icon, type IconName } from '../ui/icons';
+import { BrandMark, Icon, type IconName } from '../ui/icons';
+import { BRAND, APP_NAME } from '../core/brand';
 import { SourceForm, type Kind } from './SourceForm';
 import { PairingPanel, pairingAvailable } from './PairingPanel';
 import { onAction } from '../nav/keys';
@@ -32,10 +33,11 @@ export function Welcome() {
 
   return (
     <div class="screen opaque" ref={ref}>
-      <div class="welcome-top"><span class="welcome-brand"><OrbitMark /><b>Orbit</b></span><span class="tnum">{clock(now)}</span></div>
+      <div class="welcome-top"><span class="welcome-brand"><BrandMark /><img src={BRAND.wordmark} alt={APP_NAME} /></span><span class="tnum">{clock(now)}</span></div>
       {!step ? (
         <div class="welcome">
           <div class="welcome-main">
+            <img class="welcome-word" src={BRAND.wordmark} alt={APP_NAME} />
             <h1>Add your first playlist</h1>
             <p class="lead">{pairingAvailable ? 'Scan the code with your phone and type your provider details there. Or type them here with the remote.' : 'Enter the details your TV provider sent you.'}</p>
             <div class="options">
@@ -49,7 +51,7 @@ export function Welcome() {
           ) : (
             <div class="welcome-side card">
               <h2>What you need</h2>
-              <p class="muted">Your provider's server address, username and password (Xtream Codes), or a playlist link. Orbit has no channels of its own.</p>
+              <p class="muted">Your provider's server address, username and password (Xtream Codes), or a playlist link. The app has no channels of its own.</p>
             </div>
           )}
         </div>

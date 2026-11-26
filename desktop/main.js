@@ -1,4 +1,4 @@
-// Orbit TV desktop shell (Windows, macOS, Linux).
+// Matrix TV Streams desktop shell (Windows, macOS, Linux).
 const { app, BrowserWindow, session, shell, ipcMain, net } = require('electron');
 const path = require('path');
 
@@ -17,8 +17,9 @@ function createWindow() {
     height: 880,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#0e1220',
-    title: 'Orbit TV',
+    backgroundColor: '#0b0709',
+    title: 'Matrix TV Streams',
+    icon: path.join(__dirname, '..', 'dist', 'brand', 'icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,

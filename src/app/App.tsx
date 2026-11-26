@@ -9,6 +9,7 @@ import { mode } from '../player/controller';
 import { loading, loaded, sources, settings } from '../sources/library';
 import { OrbitPlayer } from '../core/native';
 import { PLATFORM } from '../core/platform';
+import { APP_NAME } from '../core/brand';
 import { Home } from '../screens/Home';
 import { Live } from '../screens/Live';
 import { Guide } from '../screens/Guide';
@@ -20,7 +21,7 @@ import { Settings } from '../screens/Settings';
 import { Welcome } from '../screens/Welcome';
 
 export async function exitApp() {
-  if (settings.value.askBeforeExit && !(await confirmDialog('Leave Orbit TV?', 'Anything playing will stop.', 'Leave', 'Stay'))) return;
+  if (settings.value.askBeforeExit && !(await confirmDialog(`Leave ${APP_NAME}?`, 'Anything playing will stop.', 'Leave', 'Stay'))) return;
   if (PLATFORM === 'android') OrbitPlayer.exitApp();
   else if (PLATFORM === 'electron') window.orbitDesktop?.quit();
 }

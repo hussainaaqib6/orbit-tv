@@ -2,24 +2,24 @@
 // (OrbitPlayerPlugin.startPairing), so it has to be one self-contained HTML string.
 // The TV swaps <!--STATE--> for "form" or "sent".
 export const PHONE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Add a playlist to Orbit TV</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Add a playlist to Matrix TV Streams</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f6ff;
-background:linear-gradient(165deg,#262a54,#3a3f78 55%,#2a2e5c);min-height:100vh;padding:28px 18px}
-main{max-width:460px;margin:0 auto}h1{font-size:26px;margin:0 0 6px}p{color:#c6caf0;margin:0 0 22px}
+background:radial-gradient(40rem 30rem at 50% 0%,#5a0a16,transparent 70%),#0b0709;min-height:100vh;padding:28px 18px}
+main{max-width:460px;margin:0 auto}h1{font-size:26px;margin:0 0 6px}p{color:#c9c2c4;margin:0 0 22px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.tabs label{flex:1;min-width:120px}
-.tabs input{display:none}.tabs span{display:block;text-align:center;padding:11px 10px;border-radius:99px;background:#ffffff1f;font-weight:600}
-.tabs input:checked+span{background:#52d4f8;color:#0b2340}
+.tabs input{display:none}.tabs span{display:block;text-align:center;padding:11px 10px;border-radius:99px;background:#ffffff14;font-weight:600}
+.tabs input:checked+span{background:#e3122c;color:#fff}
 .f{display:none}.f.on{display:block}
 label.l{display:block;font-weight:600;font-size:14px;margin:14px 0 6px}
-input.i{width:100%;padding:14px;border-radius:12px;border:2px solid #ffffff14;background:#ffffff24;color:#fff;font-size:16px}
-input.i:focus{outline:0;border-color:#52d4f8}
-button{margin-top:22px;width:100%;padding:15px;border:0;border-radius:99px;background:#2f6fe0;color:#fff;font-size:17px;font-weight:700}
+input.i{width:100%;padding:14px;border-radius:12px;border:2px solid #ffffff14;background:#ffffff14;color:#fff;font-size:16px}
+input.i:focus{outline:0;border-color:#ff4057}
+button{margin-top:22px;width:100%;padding:15px;border:0;border-radius:99px;background:linear-gradient(180deg,#ef2238,#b30d22);color:#fff;font-size:17px;font-weight:700}
 .done{display:none;text-align:center;padding-top:40px}.done b{font-size:46px;display:block}
 .sent .done{display:block}.sent form{display:none}
 </style></head><body class="<!--STATE-->"><main>
 <form method="post">
-<h1>Add a playlist</h1><p>Type the details from your TV provider. They go straight to your TV.</p>
+<h1>Matrix TV Streams</h1><p style="margin:-2px 0 8px;color:#ff4057;font-weight:700">Add a playlist</p><p>Type the details from your TV provider. They go straight to your TV.</p>
 <div class="tabs">
 <label><input type="radio" name="type" value="xtream" checked><span>Xtream Codes</span></label>
 <label><input type="radio" name="type" value="m3u"><span>M3U link</span></label>

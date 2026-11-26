@@ -1,7 +1,8 @@
 // The side menu. It folds to icons while you browse and opens with names when focus moves onto it.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { route, goRoot, type RootName, type Route } from '../nav/router';
-import { Icon, OrbitMark, type IconName } from '../ui/icons';
+import { Icon, BrandMark, type IconName } from '../ui/icons';
+import { BRAND } from '../core/brand';
 import { focusFirst } from '../nav/focus';
 import { clock } from '../core/format';
 import { favourites } from '../sources/library';
@@ -54,7 +55,7 @@ export function Rail() {
     // the menu never makes the screen beside it re-layout (which is slow on a TV stick).
     <nav class={`rail${open ? ' open' : ''}`} ref={ref} aria-label="Main menu" data-nav-group="rail" data-nav-scope="right">
       <div class="rail-panel">
-        <div class="rail-brand"><OrbitMark /><b>Orbit</b></div>
+        <div class="rail-brand"><BrandMark /><img class="rail-word" src={BRAND.wordmark} alt="Matrix TV Streams" /></div>
         {GROUPS.map((g, i) => [i > 0 && <div class="rail-sep" key={`s${i}`} />, ...g.map(item)])}
         <div class="rail-grow" />
         {item({ name: 'settings', label: 'Settings', icon: 'settings' })}

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Orbit TV</string>
-    <string name="title_activity_main">Orbit TV</string>
+    <string name="app_name">Matrix TV Streams</string>
+    <string name="title_activity_main">Matrix TV Streams</string>
     <string name="package_name">tv.orbit.player</string>
     <string name="custom_url_scheme">tv.orbit.player</string>
 </resources>
