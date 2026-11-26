@@ -3,7 +3,7 @@
 // Arrows move · OK watches (now), plays catch-up (past) or shows details (later) · hold OK: options ·
 // Channel +/−: a page of channels · Rewind/Fast-forward: a day back/forward.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { catalog, favourites, itemIndex, programmesFor, groupsOf } from '../sources/library';
+import { catalog, favourites, itemIndex, programmesFor, groupsOf, numberOf } from '../sources/library';
 import { indexAt } from '../sources/epg';
 import { canCatchup } from '../sources/catchup';
 import type { Channel, Programme } from '../sources/types';
@@ -188,7 +188,7 @@ export function Guide() {
                 <div key={c.key} class="guide-row" style={{ top: `${k * size.row}px`, height: `${size.row}px` }}>
                   <div class="guide-ch" style={{ width: `${size.ch}px` }}>
                     <span class="logo"><Img src={c.logo} alt={c.name} fit="contain" /></span>
-                    <span><div class="num">{c.number}</div><b class="clip" style={{ display: 'block' }}>{cleanChannelName(c.name).name}</b></span>
+                    <span><div class="num">{numberOf(c)}</div><b class="clip" style={{ display: 'block' }}>{cleanChannelName(c.name).name}</b></span>
                   </div>
                   <div class="guide-track">
                     {blocks.map(p => {

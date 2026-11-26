@@ -26,3 +26,4 @@
 .no-gap .fx-team > * + * { margin-left: 0.55rem; }
 .no-gap .fx-teams > * + * { margin-top: 0.3rem; }
 .no-gap .fxd-meta > * + * { margin-left: 0.9rem; }
+.no-gap .bf-side > * + *, .no-gap .bf-mid > * + * { margin-top: 0.4rem; }

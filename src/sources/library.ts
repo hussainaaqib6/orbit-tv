@@ -41,6 +41,26 @@ export interface Settings {
   askBeforeExit: boolean;
   showNumbers: boolean;
   autoplayNext: boolean;
+  /** Live TV: play channels in a small preview box (off: OK goes straight to full screen). */
+  miniPlayer: boolean;
+  /** Live TV: the preview follows the highlighted channel after a short pause. */
+  previewFollows: boolean;
+  /** Live TV: the preview plays without sound. */
+  previewMuted: boolean;
+  /** Player: show when a film or episode will finish, beside the clock. */
+  showFinishTime: boolean;
+  /** Seconds a live stream may stall before it is reconnected (0 = never). */
+  recoveryDelay: number;
+  /** When a channel keeps failing, switch to another version of it (HD/FHD/backup, other playlists). */
+  autoFailover: boolean;
+  /** Side menu: show a Last channel shortcut. */
+  lastChannelButton: boolean;
+  /** 'playlist': numbers follow the playlist. 'favourites': favourites are 1, 2, 3… then the rest. */
+  numbering: 'playlist' | 'favourites';
+  /** Live Sports: fixture card style. */
+  matchCards: 'classic' | 'big';
+  /** Live Sports: only fixtures that have a stream in the playlist. */
+  sportsMyChannels: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -48,6 +68,8 @@ const DEFAULT_SETTINGS: Settings = {
   aspectLive: 'fit', aspectVod: 'fit', epgOffset: 0, extraEpg: [], epgMap: {}, refreshHours: 12,
   tmdbKey: '', osKey: '', osUser: '', osPass: '', subLang: (typeof navigator !== 'undefined' ? navigator.language : 'en').slice(0, 2) || 'en',
   subSize: 100, subBackground: true, autoSubtitles: true, askBeforeExit: true, showNumbers: true, autoplayNext: true,
+  miniPlayer: true, previewFollows: false, previewMuted: false, showFinishTime: true, recoveryDelay: 10, autoFailover: true,
+  lastChannelButton: true, numbering: 'playlist', matchCards: 'classic', sportsMyChannels: false,
 };
 
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });
@@ -141,6 +163,28 @@ export function programmesFor(c: Channel | undefined): Programme[] {
   return id ? programmesById(id) : [];
 }
 export const nowNextFor = (c: Channel | undefined, t = Date.now()) => nowNext(programmesFor(c), t);
+
+/**
+ * The number shown for each channel and used by the number keys. Playlist order normally; with
+ * numbering from favourites, favourites are 1, 2, 3… in favourites order and the rest follow.
+ */
+export const channelNumbers = computed(() => {
+  const live = catalog.value.live;
+  const m = new Map<string, number>();
+  let n = 0;
+  if (settings.value.numbering === 'favourites') {
+    const idx = itemIndex.value;
+    for (const k of favourites.value) if (idx.get(k)?.kind === 'live' && !m.has(k)) m.set(k, ++n);
+  }
+  for (const c of live) if (!m.has(c.key)) m.set(c.key, n ? ++n : c.number);
+  return m;
+});
+export const numberOf = (c: Channel) => channelNumbers.value.get(c.key) ?? c.number;
+/** The channel with this number, if any. */
+export function channelByNumber(n: number): Channel | undefined {
+  const nums = channelNumbers.value;
+  return catalog.value.live.find(c => nums.get(c.key) === n);
+}
 
 /** Categories in first-seen order with counts. */
 export function groupsOf<T extends { group: string }>(items: T[]): { name: string; count: number }[] {

@@ -5,13 +5,15 @@ import { Icon, type IconName } from '../ui/icons';
 import { Monogram, Wordmark } from '../ui/brand';
 import { focusFirst } from '../nav/focus';
 import { clock } from '../core/format';
-import { favourites } from '../sources/library';
+import { favourites, settings, recentChannels } from '../sources/library';
+import { lastChannel, lastChannelTarget } from '../player/controller';
+import { cleanChannelName } from '../core/names';
 
 interface Entry { name: RootName; label: string; icon: IconName }
 const GROUPS: Entry[][] = [
   [{ name: 'home', label: 'Home', icon: 'home' }, { name: 'search', label: 'Search', icon: 'search' }, { name: 'guide', label: 'TV Guide', icon: 'guide' }],
   [{ name: 'live', label: 'Live TV', icon: 'live' }, { name: 'sports', label: 'Live Sports', icon: 'sports' }, { name: 'movies', label: 'Movies', icon: 'movies' }, { name: 'series', label: 'Series', icon: 'series' }],
-  [{ name: 'favourites', label: 'Favourites', icon: 'star' }],
+  [{ name: 'favourites', label: 'Favourites', icon: 'heart' }],
 ];
 
 const rootOf = (r: Route): RootName => (r.name === 'movie' ? 'movies' : r.name === 'show' ? 'series' : r.name);
@@ -57,6 +59,7 @@ export function Rail() {
       <div class="rail-panel">
         <div class="rail-brand"><Monogram /><Wordmark class="rail-word" /></div>
         {GROUPS.map((g, i) => [i > 0 && <div class="rail-sep" key={`s${i}`} />, ...g.map(item)])}
+        {settings.value.lastChannelButton && recentChannels.value.length > 0 && <LastChannelItem />}
         <div class="rail-grow" />
         {item({ name: 'settings', label: 'Settings', icon: 'settings' })}
         <div class="rail-clock tnum">{clock(now)}</div>
@@ -69,4 +72,16 @@ export function Rail() {
 export function focusRail() {
   const el = document.querySelector<HTMLElement>('.rail-item.on') ?? document.querySelector<HTMLElement>('.rail-item');
   el?.focus();
+}
+
+/** Side-menu shortcut back to the last channel watched (Settings → Appearance → Last channel). */
+function LastChannelItem() {
+  const c = lastChannelTarget();
+  if (!c) return null;
+  const name = cleanChannelName(c.name).name;
+  return (
+    <button class="rail-item" onClick={() => lastChannel()} aria-label={`Last channel: ${name}`}>
+      <Icon name="last" /><span class="clip">{name}</span>
+    </button>
+  );
 }

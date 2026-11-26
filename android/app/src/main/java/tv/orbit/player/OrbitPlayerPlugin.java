@@ -222,6 +222,7 @@ public class OrbitPlayerPlugin extends Plugin {
             case KeyEvent.KEYCODE_TV_ZOOM_MODE:
             case KeyEvent.KEYCODE_BOOKMARK:
             case KeyEvent.KEYCODE_SEARCH:
+            case KeyEvent.KEYCODE_LAST_CHANNEL:
                 return true;
             default:
                 return false;

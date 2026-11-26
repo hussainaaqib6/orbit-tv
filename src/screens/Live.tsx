@@ -3,7 +3,7 @@
 // and OK on the channel that is already playing makes it full screen.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
-import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings } from '../sources/library';
+import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, numberOf, channelByNumber } from '../sources/library';
 import { progress, indexAt } from '../sources/epg';
 import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
@@ -47,9 +47,14 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const listRef = useRef(list);
   listRef.current = list;
 
-  // Tell the player where the preview box is.
+  const mini = settings.value.miniPlayer;
+  const follows = mini && settings.value.previewFollows;
+  const followTimer = useRef(0);
+
+  // Tell the player where the preview box is (there is none with the mini player switched off).
   useLayoutEffect(() => {
-    const el = box.current!;
+    const el = box.current;
+    if (!el) return;
     const send = () => {
       const r = el.getBoundingClientRect();
       P.setPreviewRect({ x: r.left, y: r.top, width: r.width, height: r.height });
@@ -58,11 +63,11 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     const ro = new ResizeObserver(send);
     ro.observe(el);
     return () => { ro.disconnect(); P.setPreviewRect(null); };
-  }, []);
+  }, [mini]);
 
   // Opening Live TV carries on with the last channel watched, in the preview.
   useEffect(() => {
-    if (P.current.value) return;
+    if (P.current.value || !mini) return;
     const last = recent[0];
     if (last) P.playChannel(last, { preview: true, channels: byGroup.get(last.group) ?? all });
   }, []);
@@ -88,7 +93,11 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
     clearTimeout(hiTimer.current);
+    clearTimeout(followTimer.current);
     setHi(c);
+    // Without the mini player, or when the preview already follows the highlight, OK goes full screen.
+    if (!settings.value.miniPlayer) { P.playChannel(c, { channels: listRef.current }); return; }
+    if (settings.value.previewFollows && P.current.value?.channel?.key !== c.key) { P.playChannel(c, { channels: listRef.current }); return; }
     if (P.current.value?.channel?.key === c.key && P.mode.value === 'preview' && !P.error.value) {
       P.channelList.value = listRef.current;
       P.enterFull();
@@ -100,7 +109,17 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const highlight = useCallback((c: Channel) => {
     clearTimeout(hiTimer.current);
     hiTimer.current = window.setTimeout(() => setHi(c), 180);
+    // Optional: the preview follows the highlight once scrolling stops, so fast scrolling never
+    // opens a stream for every channel passed.
+    clearTimeout(followTimer.current);
+    if (settings.value.miniPlayer && settings.value.previewFollows) {
+      followTimer.current = window.setTimeout(() => {
+        if (P.mode.value === 'full' || P.current.value?.channel?.key === c.key) return;
+        P.playChannel(c, { preview: true, channels: listRef.current });
+      }, 900);
+    }
   }, []);
+  useEffect(() => () => clearTimeout(followTimer.current), []);
 
   // Right from the categories: switch to the highlighted category now (if it hasn't yet), then go
   // into its list, at the playing channel if it is there.
@@ -127,9 +146,9 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     clearTimeout(t.timer);
     t.timer = window.setTimeout(() => {
       const n = +t.text; t.text = '';
-      const i = listRef.current.findIndex(c => c.number === n);
+      const i = listRef.current.findIndex(c => numberOf(c) === n);
       if (i >= 0) return setJump({ index: i, id: Date.now() });
-      const c = all.find(x => x.number === n);
+      const c = channelByNumber(n);
       if (!c) return toast(`No channel ${n}`);
       setGroup(c.group);
     }, 1100);
@@ -185,11 +204,13 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
         </section>
 
         <section class="preview">
-          <div class="preview-video" ref={box} onClick={() => playing && choose(playing)}>
-            {!P.current.value && <div class="pv-msg"><Icon name="live" /><span>Press OK on a channel to watch it here</span></div>}
-            {P.error.value && P.mode.value === 'preview' && <div class="pv-msg solid">{P.error.value}</div>}
-          </div>
-          {info && <ProgrammeInfo channel={info} isPlaying={info.key === playingKey} />}
+          {mini && (
+            <div class="preview-video" ref={box} onClick={() => playing && choose(playing)}>
+              {!P.current.value && <div class="pv-msg"><Icon name="live" /><span>{follows ? 'Highlight a channel to preview it' : 'Press OK on a channel to watch it here'}</span></div>}
+              {P.error.value && P.mode.value === 'preview' && <div class="pv-msg solid">{P.error.value}</div>}
+            </div>
+          )}
+          {info && <ProgrammeInfo channel={info} isPlaying={info.key === playingKey && mini} />}
         </section>
       </div>
     </div>
@@ -203,7 +224,7 @@ const ChannelRow = memo(function ChannelRow({ c, i, playing, autofocus, showNumb
   const name = cleanChannelName(c.name);
   return (
     <button class={`chrow${playing ? ' playing' : ''}`} {...rowProps(i)} data-autofocus={autofocus || undefined} onFocus={() => onHighlight(c)} onClick={() => onChoose(c)}>
-      <span class="num">{showNumbers ? c.number : ''}</span>
+      <span class="num">{showNumbers ? numberOf(c) : ''}</span>
       <span class="logo"><Img src={c.logo} alt={name.name} /></span>
       <span class="meta">
         <span class="name"><span class="clip">{name.name}</span>{name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}</span>
@@ -227,7 +248,7 @@ function ProgrammeInfo({ channel, isPlaying }: { channel: Channel; isPlaying: bo
     <div class="preview-info">
       <div class="pi-channel">
         <span class="pi-logo"><Img src={channel.logo} alt={channel.name} /></span>
-        <span class="clip"><span class="muted tnum">{channel.number}</span> {cleanChannelName(channel.name).name}</span>
+        <span class="clip"><span class="muted tnum">{numberOf(channel)}</span> {cleanChannelName(channel.name).name}</span>
         {!isPlaying && <span class="pi-hint">OK to watch</span>}
       </div>
       {now ? (

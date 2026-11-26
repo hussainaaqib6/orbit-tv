@@ -42,6 +42,13 @@ jobs:
           (cd "$RUNNER_TEMP/fixtures" && nohup python3 -m http.server 8099 > /dev/null 2>&1 &)
           mkdir -p "$RUNNER_TEMP/xtream" && (nohup python3 .github/scripts/xtream-mock.py "$RUNNER_TEMP/xtream" 8098 > "$RUNNER_TEMP/xtream.log" 2>&1 &)
           for i in $(seq 1 90); do grep -q MB "$RUNNER_TEMP/xtream.log" && break; sleep 2; done; cat "$RUNNER_TEMP/xtream.log"
+      - name: Check every Live Sports feed answers
+        run: |
+          d=$(date -u +%Y%m%d)
+          for path in $(grep -o "path: '[^']*'" src/services/sports.ts | cut -d"'" -f2); do
+            code=$(curl -s -o /tmp/f.json -w '%{http_code}' -A 'Mozilla/5.0' "https://site.api.espn.com/apis/site/v2/sports/$path/scoreboard?dates=$d")
+            echo "$path -> HTTP $code, $(grep -o '"events":\[' /tmp/f.json | head -1 | wc -l) events list"
+          done
       - name: Run in the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:

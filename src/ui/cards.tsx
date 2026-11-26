@@ -72,7 +72,7 @@ export function openItemMenu(it: Item) {
         {it.kind === 'movie' && <SheetItem icon={<Icon name="play" />} label={resume.value[it.key] ? 'Resume' : 'Play'} autofocus onClick={() => { closeAllSheets(); P.play(moviePlayable(it)); }} />}
         {it.kind === 'movie' && resume.value[it.key] && <SheetItem icon={<Icon name="restart" />} label="Play from the start" onClick={() => { closeAllSheets(); P.play(moviePlayable(it), { fromStart: true }); }} />}
         {it.kind !== 'live' && <SheetItem icon={<Icon name="info" />} label="Details" autofocus={it.kind === 'series'} onClick={() => { closeAllSheets(); openItem(it); }} />}
-        <SheetItem icon={<Icon name="star" />} label={fav ? 'Remove from favourites' : 'Add to favourites'} onClick={() => toast(toggleFavourite(it.key) ? 'Added to favourites' : 'Removed from favourites')} />
+        <SheetItem icon={<Icon name="heart" />} label={fav ? 'Remove from favourites' : 'Add to favourites'} onClick={() => toast(toggleFavourite(it.key) ? 'Added to favourites' : 'Removed from favourites')} />
         {it.kind === 'live' && it.catchup && <SheetItem icon={<Icon name="history" />} label="Catch up" sub={`Last ${it.catchup.days} days`} onClick={() => replaceSheet(`Catch up · ${it.name}`, () => <CatchupList channel={it} />)} />}
         {it.kind === 'live' && <SheetItem icon={<Icon name="guide" />} label="Choose guide channel" sub={programmesFor(it).length ? 'Guide matched' : 'No guide yet'} onClick={() => replaceSheet(`Guide for ${it.name}`, () => <GuideMatch channel={it} />)} />}
       </>

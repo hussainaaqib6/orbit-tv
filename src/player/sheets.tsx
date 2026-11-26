@@ -13,6 +13,9 @@ import { PLATFORM } from '../core/platform';
 import { episodeList, episodePlayable } from './playables';
 import type { Aspect } from '../sources/library';
 import type { Movie } from '../sources/types';
+import { versionsOf } from '../sources/alternatives';
+import { connectionsLabel, refreshConnections } from '../services/connections';
+import { sourceById } from '../sources/library';
 
 const ASPECT_LABEL: Record<Aspect, string> = { fit: 'Fit', fill: 'Fill (crop)', stretch: 'Stretch', '16:9': '16:9', '4:3': '4:3' };
 const fmtDelay = (s: number) => (s === 0 ? '0.0 s' : `${s > 0 ? '+' : '−'}${Math.abs(s).toFixed(1)} s`);
@@ -211,8 +214,12 @@ export function openOptions() {
         <SheetItem icon={<Icon name="aspect" />} label="Picture" value={ASPECT_LABEL[P.aspect.value]} onClick={() => { closeSheet(); openPicture(); }} />
         {!live && <SheetItem icon={<Icon name="speed" />} label="Playback speed" value={P.speed.value === 1 ? 'Normal' : `${P.speed.value}×`} onClick={() => { closeSheet(); openSpeed(); }} />}
         {cur.series && <SheetItem icon={<Icon name="episodes" />} label="Episodes" onClick={() => { closeSheet(); openEpisodes(); }} />}
+        {live && cur.channel && versionsOf(cur.channel).length > 0 && (
+          <SheetItem icon={<Icon name="list" />} label="Other versions of this channel" value={String(versionsOf(cur.channel).length)} onClick={() => replaceSheet('Other versions', () => <Versions />)} />
+        )}
+        {live && <SheetItem icon={<Icon name="last" />} label="Last channel" sub={P.lastChannelTarget()?.name ?? 'None yet'} onClick={() => { closeSheet(); P.lastChannel(); }} />}
         {!live && <SheetItem icon={<Icon name="restart" />} label="Play from the start" onClick={() => { closeSheet(); P.seekTo(0); }} />}
-        <SheetItem icon={<Icon name="star" />} label={isFavourite(favKey) ? 'Remove from favourites' : 'Add to favourites'} onClick={() => { toast(toggleFavourite(favKey) ? 'Added to favourites' : 'Removed from favourites'); }} />
+        <SheetItem icon={<Icon name="heart" />} label={isFavourite(favKey) ? 'Remove from favourites' : 'Add to favourites'} onClick={() => { toast(toggleFavourite(favKey) ? 'Added to favourites' : 'Removed from favourites'); }} />
         {PLATFORM === 'android' && (
           <SheetItem icon={<Icon name="tv" />} label="Player engine" sub={settings.value.engine === 'native' ? 'ExoPlayer (recommended)' : 'Web player'} value="Switch"
             onClick={() => { updateSettings({ engine: settings.value.engine === 'native' ? 'web' : 'native' }); closeSheet(); P.retry(); }} />
@@ -224,11 +231,28 @@ export function openOptions() {
   });
 }
 
+/** HD/FHD/backup versions of the playing channel, from every playlist. */
+function Versions() {
+  const c = P.current.value?.channel;
+  if (!c) return null;
+  const list = versionsOf(c);
+  return (
+    <>{list.map((v, i) => {
+      const src = sourceById(v.sourceId);
+      return <SheetItem key={v.key} autofocus={i === 0} label={v.name} sub={[src?.name, src ? connectionsLabel(src) : ''].filter(Boolean).join(' · ')}
+        onClick={() => { closeAllSheets(); P.playChannel(v, { channels: P.channelList.value }); }} />;
+    })}</>
+  );
+}
+
 function StreamInfo() {
   const cur = P.current.value;
+  const src = cur?.channel ? sourceById(cur.channel.sourceId) : undefined;
+  useEffect(() => { if (src) refreshConnections(src); }, []);
   const rows: [string, string][] = [
     ['Engine', P.engineName.value === 'native' ? 'ExoPlayer' : 'Web player'],
-    ['Format', cur && /\.m3u8(\?|$)/i.test(cur.url) ? 'HLS' : 'MPEG-TS / file'],
+    ['Format', P.streamFormat.value || 'Unknown'],
+    ...(src?.type === 'xtream' ? [['Provider', connectionsLabel(src)] as [string, string]] : []),
     ['State', P.state.value],
     ...P.tracks.value.map(t => [t.type === 'audio' ? 'Audio' : 'Subtitles', `${t.label}${t.selected ? ' (on)' : ''}`] as [string, string]),
   ];

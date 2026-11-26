@@ -16,7 +16,7 @@ import { Img } from '../ui/Img';
 import { VirtualList, rowProps } from '../ui/VirtualList';
 import { toast, sheetOpen, closeAllSheets } from '../ui/overlays';
 import { openAudio, openEpisodes, openOptions, openPicture, openSubtitles } from './sheets';
-import { catalog, isFavourite, nowNextFor, settings, toggleFavourite } from '../sources/library';
+import { catalog, isFavourite, nowNextFor, settings, toggleFavourite, numberOf, channelByNumber } from '../sources/library';
 import { progress } from '../sources/epg';
 import { clock, duration as fmt } from '../core/format';
 import { cueHtml } from '../services/subtitles';
@@ -63,7 +63,7 @@ function enterDigit(d: string) {
     const n = +digits.value;
     digits.value = '';
     const all = catalog.value.live;
-    const c = all.find(x => x.number === n);
+    const c = channelByNumber(n);
     if (!c) { toast(`No channel ${n}`); return; }
     const list = P.channelList.value.some(x => x.key === c.key) ? P.channelList.value : all;
     P.playChannel(c, { channels: list });
@@ -90,7 +90,7 @@ function globalAction(a: Action): boolean {
     case 'subtitle': openSubtitles(); return true;
     case 'audio': openAudio(); return true;
     case 'zoom': case 'blue': P.cycleAspect(); toast(`Picture: ${P.aspect.value}`); return true;
-    case 'yellow': P.lastChannel(); return true;
+    case 'yellow': case 'last': P.lastChannel(); return true;
     case 'mute': P.toggleMute(); toast(P.muted.value ? 'Muted' : 'Sound on'); return true;
     case 'fav': case 'red': {
       const k = cur?.channel?.key ?? cur?.series?.key ?? cur?.key;
@@ -209,7 +209,7 @@ function ChannelPanel() {
           const { now } = nowNextFor(c);
           return (
             <button class={`chrow${c.key === curKey ? ' playing' : ''}`} {...rowProps(i)} onClick={() => { panel.value = false; P.playChannel(c); }}>
-              <span class="num">{c.number}</span>
+              <span class="num">{numberOf(c)}</span>
               <span class="logo"><Img src={c.logo} alt={c.name} /></span>
               <span><div class="name clip">{cleanChannelName(c.name).name}</div><div class="now clip">{now ? now.title : c.group}</div></span>
             </button>
@@ -309,10 +309,14 @@ export function PlayerOverlay() {
         <div class="p-top">
           {cur.channel && <span class="p-logo"><Img src={cur.channel.logo} alt={cur.channel.name} /></span>}
           <div class="p-title">
-            <h1 class="clip">{cur.channel && live ? <><span class="faint tnum">{cur.channel.number}</span> {cur.title}</> : cur.title}</h1>
+            <h1 class="clip">{cur.channel && live ? <><span class="faint tnum">{numberOf(cur.channel)}</span> {cur.title}</> : cur.title}</h1>
             {cur.subtitle && <div class="muted clip">{live ? cur.channel?.group : cur.subtitle}</div>}
           </div>
-          <div class="p-clock tnum">{clock(Date.now())}</div>
+          <div class="p-clock tnum">
+            {clock(Date.now())}
+            {!live && s.showFinishTime && P.duration.value > 0 && <div class="p-ends">Ends {clock(Date.now() + Math.max(0, P.duration.value - P.position.value) * 1000 / (P.speed.value || 1))}</div>}
+            {live && P.streamFormat.value && <div class="p-ends">{P.streamFormat.value}</div>}
+          </div>
         </div>
       )}
 
@@ -332,7 +336,7 @@ export function PlayerOverlay() {
             <button class="pbtn wide" onClick={openSubtitles}><Icon name="cc" /><span>Subtitles</span></button>
             <button class="pbtn wide" onClick={openAudio}><Icon name={P.muted.value ? 'mute' : 'audio'} /><span>Audio</span></button>
             <button class="pbtn wide" onClick={openPicture}><Icon name="aspect" /><span>{P.aspect.value === 'fit' ? 'Picture' : P.aspect.value}</span></button>
-            {live && <button class={`pbtn${isFavourite(favKey) ? ' on' : ''}`} aria-label="Favourite" onClick={() => toast(toggleFavourite(favKey) ? 'Added to favourites' : 'Removed from favourites')}><Icon name="star" /></button>}
+            {live && <button class={`pbtn${isFavourite(favKey) ? ' on' : ''}`} aria-label="Favourite" onClick={() => toast(toggleFavourite(favKey) ? 'Added to favourites' : 'Removed from favourites')}><Icon name="heart" class={isFavourite(favKey) ? 'filled' : ''} /></button>}
             <button class="pbtn" onClick={openOptions} aria-label="Options"><Icon name="more" /></button>
             <button class="pbtn" onClick={P.exitFull} aria-label="Close player"><Icon name="close" /></button>
           </div>
