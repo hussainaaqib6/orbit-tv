@@ -69,7 +69,7 @@ export function PairingPanel({ onAdded }: { onAdded?: () => void }) {
         <p class="error-text">The phone link could not start: {error} Use the sign-in form instead.</p>
       ) : (
         <>
-          <p class="pair-how">Scan with your phone's camera. Your phone needs to be on the same Wi-Fi as this TV.</p>
+          <p class="pair-how">Scan with your phone's camera. Your phone needs to be on the same Wi-Fi as this TV (not mobile data or a guest network). If the page won't open, turn off any VPN on the phone.</p>
           {url && <p class="pair-url tnum">or open <b>{url.replace(/^http:\/\//, '')}</b></p>}
           <p class="pair-status"><span class={`dot${status === 'loading' ? ' busy' : ''}`} />{status === 'loading' ? 'Loading your playlist…' : 'Waiting for your details…'}</p>
         </>
