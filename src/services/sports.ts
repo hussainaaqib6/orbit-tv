@@ -180,9 +180,20 @@ export async function fixturesFor(league: League): Promise<Fixture[]> {
   const live = c?.fixtures.some(f => f.state === 'in');
   if (c && Date.now() - c.at < (live ? 60e3 : 300e3)) return c.fixtures;
   const now = Date.now();
-  const url = `https://site.api.espn.com/apis/site/v2/sports/${league.path}/scoreboard?dates=${ymd(now - 86400e3)}-${ymd(now + 7 * 86400e3)}&limit=300`;
-  const j = await request<{ events?: EspnEvent[] }>(url, { timeoutMs: 15000 });
-  const fixtures = parseScoreboard(league.id, j ?? {});
+  const base = `https://site.api.espn.com/apis/site/v2/sports/${league.path}/scoreboard`;
+  const get = (q: string) => request<{ events?: EspnEvent[] }>(`${base}?${q}`, { timeoutMs: 15000, headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 Chrome/120 Safari/537.36', Accept: 'application/json' } });
+  let fixtures: Fixture[];
+  try {
+    // One request for the whole week…
+    fixtures = parseScoreboard(league.id, (await get(`dates=${ymd(now - 86400e3)}-${ymd(now + 7 * 86400e3)}`)) ?? {});
+  } catch {
+    // …or, if the feed won't take a range, a day at a time.
+    const days = await Promise.allSettled([...Array(8)].map((_, i) => get(`dates=${ymd(now + (i - 1) * 86400e3)}`)));
+    const ok = days.filter((d): d is PromiseFulfilledResult<{ events?: EspnEvent[] }> => d.status === 'fulfilled');
+    if (!ok.length) throw (days[0] as PromiseRejectedResult).reason;
+    const seen = new Set<string>();
+    fixtures = ok.flatMap(d => parseScoreboard(league.id, d.value ?? {})).filter(f => !seen.has(f.id) && !!seen.add(f.id)).sort((a, b) => a.start - b.start);
+  }
   cache.set(league.id, { at: Date.now(), fixtures });
   return fixtures;
 }
