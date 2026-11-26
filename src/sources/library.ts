@@ -353,10 +353,12 @@ export async function reloadGuide(): Promise<void> {
       setMemoryGuide(g, portal);
     }
   } catch (e) {
+    console.warn('[orbit] guide failed', e);
     errs.push(`Guide: ${friendlyError(e)}`);
   }
   if (gen !== guideGen) return;
   const matched = guide.value.has.size;
+  if (errs.length) console.warn(`[orbit] guide problems: ${errs.join(' | ')}`);
   setPart('guide', matched
     ? { status: 'done', count: matched, note: '' }
     : { status: errs.length ? 'error' : 'done', count: 0, note: errs.length ? 'Could not load the guide' : 'No programmes matched your channels' });
@@ -364,6 +366,8 @@ export async function reloadGuide(): Promise<void> {
     loading.value = '';
     if (errs.length) errors.value = [...errors.value, ...errs];
   });
+  // A guide that failed is not saved, so the next start tries again.
+  if (!matched && errs.length) return;
   try {
     const blob = await cache.get<CacheBlob>('catalog');
     if (blob) {

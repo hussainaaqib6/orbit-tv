@@ -123,8 +123,9 @@ final class GuideStore {
         HashMap<String, Integer> counts = new HashMap<>();      // id -> programmes kept
         Set<String> keep = new HashSet<>();
         try {
-            out.execSQL("PRAGMA journal_mode=OFF");
-            out.execSQL("PRAGMA synchronous=OFF");
+            // PRAGMAs that answer with a row must go through rawQuery; execSQL refuses them.
+            try (Cursor c = out.rawQuery("PRAGMA journal_mode=OFF", null)) { c.moveToFirst(); } catch (Exception ignored) {}
+            try (Cursor c = out.rawQuery("PRAGMA synchronous=OFF", null)) { c.moveToFirst(); } catch (Exception ignored) {}
             out.execSQL("CREATE TABLE p (ch TEXT NOT NULL, s INTEGER NOT NULL, e INTEGER NOT NULL, t TEXT, d TEXT)");
             out.beginTransaction();
             SQLiteStatement ins = out.compileStatement("INSERT INTO p (ch, s, e, t, d) VALUES (?, ?, ?, ?, ?)");

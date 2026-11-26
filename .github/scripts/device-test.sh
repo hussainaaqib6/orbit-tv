@@ -13,7 +13,7 @@ wait_log() { # wait_log <pattern> <seconds> <shot prefix>
   local i=0
   while [ $i -lt "$2" ]; do
     adb logcat -d | grep -q "$1" && return 0
-    if [ $((i % 10)) -eq 0 ]; then shot "$3-$(printf %03d $i)" 0; mem "$3 t=${i}s"; fi
+    if [ $((i % 6)) -eq 2 ]; then shot "$3-$(printf %03d $i)" 0; mem "$3 t=${i}s"; fi
     sleep 2; i=$((i + 2))
   done
   echo "timed out waiting for $1"; return 1
@@ -83,6 +83,7 @@ key DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN
 shot 22-tv-guide-scrolled 3
 mem guide
 # Start again: the saved playlist and guide should come up in seconds.
+adb logcat -d > "$out/logcat-first-run.txt"
 adb shell am force-stop tv.orbit.player
 adb logcat -c
 adb shell am start -n tv.orbit.player/.MainActivity
@@ -99,4 +100,5 @@ key DPAD_CENTER
 shot 28-after-ok-on-dialog 2
 mem end
 adb logcat -d > "$out/logcat.txt"
-grep -E "\[orbit\]|OrbitPlayer|FATAL|AndroidRuntime|render process|Error|error" "$out/logcat.txt" | grep -v "Notifying listeners\|Phenotype\|RcsClientLib" > "$out/app-log.txt" || true
+grep -hE "\[orbit\]|OrbitPlayer|guide|FATAL|AndroidRuntime|render process|Error|error" "$out/logcat.txt" | grep -v "Notifying listeners\|Phenotype\|RcsClientLib" > "$out/app-log.txt" || true
+grep -hE "\[orbit\] (guide|startup)|methodName: guide|FATAL" "$out/logcat-first-run.txt" "$out/logcat.txt" | cut -c1-400 > "$out/summary.txt" || true
