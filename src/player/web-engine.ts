@@ -131,7 +131,8 @@ export class WebEngine implements Engine {
   private layout = () => {
     const v = this.v;
     const box = this.rect ?? { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
-    const { mode, zoom } = this.aspect;
+    // The preview box is always filled (like the Android player); picture modes apply full screen.
+    const { mode, zoom } = this.rect ? { mode: 'fill', zoom: 1 } : this.aspect;
     let w = box.width, h = box.height;
     const forced = mode === '16:9' ? 16 / 9 : mode === '4:3' ? 4 / 3 : 0;
     if (forced) { if (w / h > forced) w = h * forced; else h = w / forced; }

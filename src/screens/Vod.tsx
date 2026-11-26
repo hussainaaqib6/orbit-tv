@@ -1,4 +1,4 @@
-// Movies and Series: categories on the left, a poster wall on the right, with sorting.
+// Movies and Series: categories on the left, a poster wall on the right, with search and sorting.
 // Yellow (or the Sort button) changes the order.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { catalog, favourites, resume, watched, groupsOf, settings, updateSettings, sources } from '../sources/library';
@@ -10,6 +10,7 @@ import { PosterCard, PosterRow } from '../ui/cards';
 import { onAction } from '../nav/keys';
 import { focusEl } from '../nav/focus';
 import { Icon } from '../ui/icons';
+import { useSectionSearch, SearchBox } from '../ui/sectionSearch';
 
 type Sort = 'default' | 'added' | 'az' | 'za' | 'rating' | 'year' | 'watched' | 'playlist-az';
 const SORTS: { id: Sort; label: string }[] = [
@@ -54,8 +55,6 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
     return m;
   }, [items]);
   const [group, setGroup] = useState<string>(ALL);
-  // The category column folds away while browsing posters, so more fit on a row.
-  const [browsing, setBrowsing] = useState(false);
   const s0 = settings.value;
   const sortKey = `${kind}:${group}`;
   const sort = (s0.sortByGroup[sortKey] ?? s0.sortDefault[kind] ?? 'added') as Sort;
@@ -81,10 +80,14 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
     for (const [k, at] of Object.entries(watched.value)) { const key = k.split(':').slice(0, 3).join(':'); m.set(key, Math.max(m.get(key) ?? 0, at)); m.set(k, Math.max(m.get(k) ?? 0, at)); }
     return m;
   }, [resume.value, watched.value]);
+  // Search covers the whole section (every category), not just the one picked.
+  const search = useSectionSearch(items, x => x.name);
+  const clearSearch = useRef(search.clear);
+  clearSearch.current = search.clear;
   const list = useMemo(() => {
-    const base = group === ALL ? items : group === FAV ? favs : group === CONT ? inProgress : byGroup.get(group) ?? [];
+    const base = search.results ?? (group === ALL ? items : group === FAV ? favs : group === CONT ? inProgress : byGroup.get(group) ?? []);
     return sortItems(base, sort, lastSeen, sources.value.map(x => x.id));
-  }, [group, sort, items, favs, inProgress, byGroup, lastSeen]);
+  }, [group, sort, items, favs, inProgress, byGroup, lastSeen, search.results]);
 
   /** Order: for everything, or (when chosen) for this category only. */
   const chooseSort = () => chooseSortWith(!!settings.value.sortByGroup[sortKey])();
@@ -107,35 +110,34 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
     const el = screen.current!;
     const off = onAction(el, a => {
       if (a === 'yellow') { cycleSort(); return true; }
-      // Back, or Left from the first column, brings the categories back.
-      if ((a === 'back' || a === 'left') && document.activeElement?.closest('.grid-wrap')) {
-        setBrowsing(false);
-        requestAnimationFrame(() => focusEl(el.querySelector<HTMLElement>('.cat.on')));
+      // Back from the posters goes to the categories (which stay on screen, as in GalaxyXC: folding
+      // them away re-laid the whole poster grid each time, a visible stutter on a TV stick).
+      if (a === 'back' && document.activeElement?.closest('.grid-wrap')) {
+        clearSearch.current();
+        requestAnimationFrame(() => focusEl(el.querySelector<HTMLElement>('.cat[data-autofocus]') ?? el.querySelector<HTMLElement>('.cat')));
         return true;
       }
     });
-    const onFocus = () => setBrowsing(!!document.activeElement?.closest('.grid-wrap'));
-    el.addEventListener('focusin', onFocus);
-    return () => { off(); el.removeEventListener('focusin', onFocus); };
+    return off;
   }, []);
 
   const cat = (key: string, label: string, n: number) => (
-    <button key={key} class={`cat${group === key ? ' on' : ''}`}
+    <button key={key} data-autofocus={group === key || undefined} class={`cat${group === key ? ' on' : ''}`}
       onFocus={() => {
         clearTimeout(catTimer.current);
         pendingGroup.current = key;
         catTimer.current = window.setTimeout(() => { pendingGroup.current = null; setGroup(key); }, 400);
       }}
-      onClick={() => { clearTimeout(catTimer.current); pendingGroup.current = null; setGroup(key); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))); }}>
+      onClick={() => { clearTimeout(catTimer.current); pendingGroup.current = null; search.clear(); setGroup(key); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))); }}>
       <span class="clip">{label}</span><span class="n">{n}</span>
     </button>
   );
   const title = kind === 'movies' ? 'Movies' : 'Series';
-  const label = group === ALL ? `All ${title.toLowerCase()}` : group === FAV ? 'Favourites' : group === CONT ? 'Continue watching' : group;
+  const label = search.results ? `Results for “${search.text.trim()}”` : group === ALL ? `All ${title.toLowerCase()}` : group === FAV ? 'Favourites' : group === CONT ? 'Continue watching' : group;
 
   return (
     <div class="screen opaque" ref={screen}>
-      <div class={`browse${browsing ? ' folded' : ''}`}>
+      <div class="browse">
         <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={catsRef}>
           <div class="cats-head"><h1>{title}</h1></div>
           <div class="cats-list">
@@ -150,10 +152,12 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
           <div class="vod-head">
             <h2 class="clip">{label}</h2>
             <span class="muted">{list.length}</span>
+            <span style={{ flex: 1 }} />
+            <SearchBox text={search.text} onText={search.setText} placeholder={`Search ${title.toLowerCase()}`} />
             <button class="chip" onClick={chooseSort} aria-label="Change order"><Icon name="sort" />{SORTS.find(s => s.id === sort)!.label}{settings.value.sortByGroup[sortKey] ? ' (this category)' : ''}</button>
             <button class="chip" onClick={cycleView} aria-label="Change view"><Icon name="list" />{VIEWS.find(v => v.id === view)!.label}</button>
           </div>
-          {!list.length ? <div class="empty"><p>Nothing here yet.</p></div>
+          {!list.length ? <div class="empty"><p>{search.results ? `No ${title.toLowerCase()} match “${search.text.trim()}”.` : 'Nothing here yet.'}</p></div>
             : view === 'grid' ? <VirtualGrid items={list} minRem={9} ratio={1.5} extraRem={2.9} keyOf={x => x.key} render={x => <PosterCard item={x} />} />
             : <div class="grid-wrap vlist"><VirtualList items={list} rowRem={view === 'list' ? 7.4 : 3.6} keyOf={x => x.key} navGroup="vod"
                 onRowAction={a => { if (a === 'left') return false; }}
