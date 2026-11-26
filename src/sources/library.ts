@@ -13,7 +13,7 @@ import { guide, programmesById, prefetchGuide, setMemoryGuide, useNativeGuide, m
 import { OrbitPlayer } from '../core/native';
 import { setPart, resetParts, type Part } from './loadState';
 import { isHidden, isLocked, unlocked, type Kind } from './restrictions';
-import { DEFAULT_THEME, type Theme } from '../core/theme';
+import { DEFAULT_THEME, isOldDefault, type Theme } from '../core/theme';
 import type { ShortcutTarget } from '../app/shortcuts';
 import type { Catalog, Channel, Item, Movie, Programme, Series, Source } from './types';
 
@@ -107,7 +107,10 @@ const DEFAULT_SETTINGS: Settings = {
   sortDefault: {}, sortByGroup: {}, vodView: {}, homeRows: [], rateThis: true, liveSubtitles: false,
 };
 
-export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });
+const savedSettings = store.get<Partial<Settings>>('settings', {});
+// The old red look was the default until the Home redesign; move installs that never changed it.
+if (isOldDefault(savedSettings.theme)) delete savedSettings.theme;
+export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...savedSettings });
 export function updateSettings(patch: Partial<Settings>) {
   settings.value = { ...settings.value, ...patch };
   store.set('settings', settings.value);

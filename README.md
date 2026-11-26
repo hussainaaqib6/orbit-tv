@@ -2,7 +2,7 @@
 
 An IPTV player for **Fire TV Stick, Android TV, Android phones, iPhone/iPad** and desktop (Windows, macOS, Linux). Bring your own provider: Orbit plays the channels, films and series from your own Xtream Codes login, M3U playlist or MAC portal. It comes with no content of its own.
 
-Version 2 is a rebuild. It has a new remote-first interface, a native ExoPlayer engine on Android and Fire TV, and full player controls.
+Version 2 is a rebuild. It has a remote-first interface built around a Home screen of big tiles (Live TV, TV Guide, Movies, Series), a native ExoPlayer engine on Android and Fire TV, and full player controls.
 
 ---
 
@@ -43,8 +43,8 @@ Version 2 is a rebuild. It has a new remote-first interface, a native ExoPlayer 
 |---|---|---|
 | OK | Open / play | Show controls |
 | Hold OK, Menu, Info | Options for the item (favourite, catch-up, guide match) | Options (live: channel list) |
-| Back | Up one level → side menu → leave (asks first) | Hide controls → close player |
-| Left (first column) | Open the side menu | Channel list (live) / skip back (films) |
+| Back | Up one level → Home → leave (asks first) | Hide controls → close player |
+| Left | Move | Channel list (live) / skip back (films) |
 | Up / Down | Move | Change channel (live) |
 | Rewind / Fast-forward | Page up / down | ±30 s (films) / change channel (live) |
 | Channel + / − | Page up / down | Change channel / next or previous episode |

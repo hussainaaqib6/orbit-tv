@@ -26,7 +26,7 @@
 .seek .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--grad); border-radius: 1rem; }
 .seek .track b { position: absolute; top: 50%; width: 1.1rem; height: 1.1rem; margin: -0.55rem 0 0 -0.55rem; border-radius: 50%; background: var(--ink); opacity: 0; transition: transform .12s; }
 .seek:focus .track { height: 0.55rem; }
-.seek:focus .track b { background: #fff; box-shadow: 0 0 0 0.35rem #ff2e4d66; }
+.seek:focus .track b { background: #fff; box-shadow: 0 0 0 0.35rem var(--accent-line); }
 .seek:focus .track b { opacity: 1; transform: scale(1.3); }
 .seek:hover .track b { opacity: 1; }
 

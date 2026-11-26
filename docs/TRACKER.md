@@ -50,7 +50,7 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 | 11 | Estimated finish time | Implemented | All | **This batch.** Follows pause, skips and speed. |
 | 20 | Last Channel | Implemented | All | **This batch.** Remote Last/Yellow from any screen, side-menu shortcut, player option, swaps between the two most recent. |
 | 21 | Remote button customisation | Implemented | All | **2b.** Colour, Guide, Search, Bookmark and (outside the player) Play/Pause/FF/RW buttons → 14 jobs; works in the player too; shared-job warning; restore defaults. Long-press mapping not yet. |
-| 22 | Advanced side menu | Partially Implemented | All | **2b:** reorder and hide items. Not yet: auto-open on highlight. |
+| 22 | Advanced side menu | Implemented | All | **Replaced (Nov 2026):** the side menu is gone; Home is a hub of four big tiles plus a shortcut row, Back always returns Home, Settings is an icon grid, and start-up shows an "Update Media Contents" table. Flat blue is the new default theme (old red kept as "Matrix red"). |
 | 23 | Universal search | Implemented | All | **2c:** channels, films, series, TV programmes (native guide search), teams/matches; "Search in" tabs; results as rows. Actors/directors need metadata the playlists don't carry (TMDB per item). |
 | 24 | Enhanced TV Guide navigation | Implemented | All | **2b:** day markers at midnight, Go to day, Now, focus returns to the playing channel and its programme. Recording indicators wait for recording. |
 | 25 | Channel numbering (playlist / favourites first) | Implemented | All | **This batch.** Custom per-channel numbers not yet. |
