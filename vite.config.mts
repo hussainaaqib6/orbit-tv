@@ -11,7 +11,8 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     emptyOutDir: true,
-    target: 'es2020', // Fire OS 7+ WebViews are Chromium 80 or newer
+    target: ['es2019', 'chrome80'], // TV WebViews can be as old as Chromium 80
+    cssTarget: ['chrome80'],
     sourcemap: true,
   },
   server: { port: 5173 },

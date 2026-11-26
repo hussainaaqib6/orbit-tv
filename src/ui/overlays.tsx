@@ -55,11 +55,12 @@ export function Sheets() {
 
 /* ------------------------------ dialogs ------------------------------ */
 
-interface DialogSpec { title: string; text: string; ok: string; cancel: string; resolve: (v: boolean) => void }
+interface DialogSpec { title: string; text: string; ok: string; cancel: string; safeDefault: boolean; resolve: (v: boolean) => void }
 const dialog = signal<DialogSpec | null>(null);
 
-export function confirmDialog(title: string, text: string, ok = 'OK', cancel = 'Cancel'): Promise<boolean> {
-  return new Promise(resolve => { dialog.value = { title, text, ok, cancel, resolve }; });
+/** `safeDefault`: focus starts on Cancel, so a stray OK press does nothing harmful (leaving, deleting). */
+export function confirmDialog(title: string, text: string, ok = 'OK', cancel = 'Cancel', safeDefault = true): Promise<boolean> {
+  return new Promise(resolve => { dialog.value = { title, text, ok, cancel, safeDefault, resolve }; });
 }
 
 export function Dialog() {
@@ -79,8 +80,8 @@ export function Dialog() {
         <h2>{d.title}</h2>
         <p>{d.text}</p>
         <div class="row">
-          <button class="btn primary" data-autofocus onClick={() => done(true)}>{d.ok}</button>
-          <button class="btn quiet" onClick={() => done(false)}>{d.cancel}</button>
+          <button class="btn primary" data-autofocus={!d.safeDefault || undefined} onClick={() => done(true)}>{d.ok}</button>
+          <button class="btn quiet" data-autofocus={d.safeDefault || undefined} onClick={() => done(false)}>{d.cancel}</button>
         </div>
       </div>
     </div>

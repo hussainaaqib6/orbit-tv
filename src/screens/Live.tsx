@@ -73,6 +73,8 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
+    clearTimeout(hiTimer.current);
+    setHi(c);
     if (P.current.value?.channel?.key === c.key && P.mode.value === 'preview' && !P.error.value) {
       P.channelList.value = listRef.current;
       P.enterFull();

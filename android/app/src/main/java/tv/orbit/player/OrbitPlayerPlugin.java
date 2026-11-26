@@ -122,7 +122,8 @@ public class OrbitPlayerPlugin extends Plugin {
             t.put("live", player.isCurrentMediaItemLive());
             t.put("seekable", player.isCurrentMediaItemSeekable() && dur != C.TIME_UNSET && dur > 0);
             notifyListeners("time", t);
-            main.postDelayed(this, 250);
+            // Full screen needs a smooth seek bar; the preview box only needs the odd update.
+            main.postDelayed(this, rect == null ? 250 : 1000);
         }
     };
 
