@@ -68,6 +68,8 @@ export function applyTheme(t: Theme) {
   root.style.fontSize = t.fontScale === 100 ? '' : `calc(clamp(13px, min(1.05vw, 1.9vh), 22px) * ${t.fontScale / 100})`;
   root.dataset.menu = t.menu;
   root.style.setProperty('--bg-image', t.backgroundImage ? `url("${t.backgroundImage.replace(/["\\\\]/g, '')}")` : 'none');
+  // A background picture shows through the pages; without one they paint solid (faster to scroll).
+  if (t.backgroundImage) root.dataset.bgImage = ''; else delete root.dataset.bgImage;
 }
 
 /** Only the fields a theme may contain, checked, so an imported code can't carry anything else. */

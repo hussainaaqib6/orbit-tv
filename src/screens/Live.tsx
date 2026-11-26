@@ -343,7 +343,7 @@ const ChannelTile = memo(function ChannelTile({ c, onPick }: { c: Channel; onPic
   const name = isDivider(c.name) ? dividerLabel(c.name) : cleanChannelName(c.name).name;
   return (
     <button class="ch-tile" data-key={c.key} onClick={() => onPick(c)} onContextMenu={e => { e.preventDefault(); openItemMenu(c); }}>
-      <span class="ch-tile-logo"><Img src={c.logo} alt={name} fit="contain" /></span>
+      <span class="ch-tile-logo"><Img src={c.logo} alt={name} fit="contain" defer /></span>
       <span class="ch-tile-name clamp2">{name}</span>
     </button>
   );

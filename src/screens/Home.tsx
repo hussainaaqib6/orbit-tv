@@ -7,12 +7,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { onAction } from '../nav/keys';
 import { focusEl } from '../nav/focus';
-import { catalog, favourites, recentChannels, errors, loaded, loading, loadingSince, reload, settings, sources } from '../sources/library';
+import { catalog, favourites, errors, loaded, loading, loadingSince, reload, sources } from '../sources/library';
 import { Icon, type IconName } from '../ui/icons';
 import { Wordmark } from '../ui/brand';
 import { goRoot, type Route } from '../nav/router';
 import { clock } from '../core/format';
-import { lastChannel, lastChannelTarget } from '../player/controller';
 
 const count = (n: number, one: string, many: string) => (n ? `${n.toLocaleString()} ${n === 1 ? one : many}` : '');
 
@@ -62,7 +61,6 @@ export function Home() {
   const nothing = !c.live.length && !c.movies.length && !c.series.length;
   const src = sources.value.find(s => s.enabled && s.expires) ?? sources.value.find(s => s.enabled);
   const expires = src?.expires;
-  const last = settings.value.lastChannelButton && recentChannels.value.length > 0 ? lastChannelTarget() : null;
   const date = new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const go = (to: Route) => () => goRoot(to);
 
@@ -104,8 +102,6 @@ export function Home() {
         </div>
         <div class="gx-foot-side">
           {favourites.value.length > 0 && <Tile icon="heart" label="Favourites" onClick={go({ name: 'favourites' })} />}
-          {recentChannels.value.length > 0 && <Tile icon="clock" label="Recent" onClick={go({ name: 'live', group: '\u0001recent' })} />}
-          {last && <Tile icon="last" label="Last Ch." onClick={() => lastChannel()} />}
           <Tile icon="settings" label="Settings" onClick={go({ name: 'settings' })} />
         </div>
       </footer>

@@ -59,7 +59,6 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'previewFollows', label: 'Preview follows the highlighted channel', section: 'appearance', words: 'mini player auto preview scroll' },
   { id: 'previewMuted', label: 'Preview without sound', section: 'appearance', words: 'mini player mute audio silent' },
   { id: 'showFinishTime', label: 'Show finish time', section: 'appearance', words: 'ends end time clock player film episode' },
-  { id: 'lastChannelButton', label: 'Last channel on the Home screen', section: 'appearance', words: 'previous channel recall back swap history' },
   { id: 'numbering', label: 'Channel numbering', section: 'appearance', words: 'numbers favourites fixed sequential lcn' },
   { id: 'showNumbers', label: 'Show channel numbers', section: 'appearance', words: 'numbers lcn' },
   { id: 'engine', label: 'Player engine', section: 'player', words: 'exoplayer media3 decoder hardware web player' },
@@ -289,7 +288,6 @@ function Appearance() {
       </div>
       <h3>Last channel</h3>
       <div class="stack" style={{ marginBottom: '1.4rem' }}>
-        <Toggle id="lastChannelButton" label="Last channel on the Home screen" sub="The remote's Last or Yellow button works from any screen as well" on={s.lastChannelButton} onChange={v => set({ lastChannelButton: v })} />
       </div>
       <h3>Channel numbers</h3>
       <Choice id="numbering" label="Numbering" value={s.numbering} onChange={v => set({ numbering: v })}
