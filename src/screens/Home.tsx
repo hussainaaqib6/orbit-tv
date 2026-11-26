@@ -1,6 +1,8 @@
-// Home: the hub. Four big tiles (Live TV, TV Guide, Movies, Series), a row of small shortcuts under
-// them, and the clock. Every screen opens from here, and Back from any screen comes back here.
-// Deliberately light: no artwork to fetch and no rows to build, so it appears instantly.
+// Home: the hub, laid out like the viewer's earlier Galaxy (XCIPTV-style) app: square tiles with a
+// coloured outline, an icon and an upper-case name. Big tiles for Live TV, Movies and Series, a row
+// of smaller ones under them, the logo and clock at the top and the account expiry at the bottom.
+// Every screen opens from here, and Back from any screen comes back here. Deliberately light: no
+// artwork to fetch and no rows to build, so it appears instantly.
 import { useEffect, useState } from 'preact/hooks';
 import { catalog, favourites, recentChannels, errors, loaded, loading, loadingSince, reload, settings, sources } from '../sources/library';
 import { Icon, type IconName } from '../ui/icons';
@@ -8,25 +10,15 @@ import { Wordmark } from '../ui/brand';
 import { goRoot, type Route } from '../nav/router';
 import { clock } from '../core/format';
 import { lastChannel, lastChannelTarget } from '../player/controller';
-import { cleanChannelName } from '../core/names';
 
 const count = (n: number, one: string, many: string) => (n ? `${n.toLocaleString()} ${n === 1 ? one : many}` : '');
 
-function Tile({ icon, label, sub, to, auto }: { icon: IconName; label: string; sub: string; to: Route; auto?: boolean }) {
+function Tile({ icon, label, sub, onClick, big, auto }: { icon: IconName; label: string; sub?: string; onClick: () => void; big?: boolean; auto?: boolean }) {
   return (
-    <button class={`dash-tile t-${to.name}`} data-autofocus={auto || undefined} onClick={() => goRoot(to)} aria-label={label}>
-      <span class="dash-tile-icon"><Icon name={icon} /></span>
-      <span class="dash-tile-label">{label}</span>
-      <span class="dash-tile-sub tnum">{sub || ' '}</span>
-    </button>
-  );
-}
-
-function Small({ icon, label, onClick }: { icon: IconName; label: string; onClick: () => void }) {
-  return (
-    <button class="dash-small" onClick={onClick} aria-label={label}>
-      <span class="dash-small-icon"><Icon name={icon} /></span>
-      <span class="dash-small-label clip">{label}</span>
+    <button class={`gx-tile${big ? ' big' : ''}`} data-autofocus={auto || undefined} onClick={onClick} aria-label={label}>
+      <span class="gx-icon"><Icon name={icon} /></span>
+      <span class="gx-label">{label}</span>
+      {sub !== undefined && <span class="gx-sub tnum">{sub || ' '}</span>}
     </button>
   );
 }
@@ -38,9 +30,11 @@ export function Home() {
   if (!loaded.value) return <LoadingPlaylists />;
   const c = catalog.value;
   const nothing = !c.live.length && !c.movies.length && !c.series.length;
-  const expires = sources.value.find(s => s.enabled && s.expires)?.expires;
+  const src = sources.value.find(s => s.enabled && s.expires) ?? sources.value.find(s => s.enabled);
+  const expires = src?.expires;
   const last = settings.value.lastChannelButton && recentChannels.value.length > 0 ? lastChannelTarget() : null;
-  const date = new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  const date = new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const go = (to: Route) => () => goRoot(to);
 
   return (
     <div class="screen dash">
@@ -56,25 +50,30 @@ export function Home() {
           <button class="btn primary" data-autofocus onClick={() => goRoot({ name: 'settings', section: 'playlists' })}>Check playlists</button>
         </div>
       ) : (
-        <div class="dash-tiles" data-nav-group data-nav-scope="down">
-          <Tile icon="live" label="Live TV" sub={count(c.live.length, 'channel', 'channels')} to={{ name: 'live' }} auto />
-          <Tile icon="guide" label="TV Guide" sub="What's on" to={{ name: 'guide' }} />
-          <Tile icon="movies" label="Movies" sub={count(c.movies.length, 'film', 'films')} to={{ name: 'movies' }} />
-          <Tile icon="series" label="Series" sub={count(c.series.length, 'series', 'series')} to={{ name: 'series' }} />
+        <div class="gx-big" data-nav-group data-nav-scope="down">
+          <Tile big icon="live" label="Live TV" sub={count(c.live.length, 'channel', 'channels')} onClick={go({ name: 'live' })} auto />
+          <Tile big icon="movies" label="VOD" sub={count(c.movies.length, 'film', 'films')} onClick={go({ name: 'movies' })} />
+          <Tile big icon="series" label="Series" sub={count(c.series.length, 'series', 'series')} onClick={go({ name: 'series' })} />
         </div>
       )}
 
-      <div class="dash-row" data-nav-group data-nav-scope="up">
-        {favourites.value.length > 0 && <Small icon="heart" label="Favourites" onClick={() => goRoot({ name: 'favourites' })} />}
-        {recentChannels.value.length > 0 && <Small icon="history" label="Recently watched" onClick={() => goRoot({ name: 'live', group: '\u0001recent' })} />}
-        {last && <Small icon="last" label={cleanChannelName(last.name).name} onClick={() => lastChannel()} />}
-        <Small icon="sports" label="Live Sports" onClick={() => goRoot({ name: 'sports' })} />
-        <Small icon="search" label="Search" onClick={() => goRoot({ name: 'search' })} />
-        <Small icon="refresh" label="Reload playlist" onClick={() => reload(true)} />
-        <Small icon="settings" label="Settings" onClick={() => goRoot({ name: 'settings' })} />
+      <div class="gx-small" data-nav-group data-nav-scope="up">
+        <Tile icon="guide" label="TV Guide" onClick={go({ name: 'guide' })} />
+        <Tile icon="history" label="Catch Up" onClick={go({ name: 'guide' })} />
+        {recentChannels.value.length > 0 && <Tile icon="clock" label="Recent" onClick={go({ name: 'live', group: '\u0001recent' })} />}
+        {favourites.value.length > 0 && <Tile icon="heart" label="Favourites" onClick={go({ name: 'favourites' })} />}
+        {last && <Tile icon="last" label="Last Channel" onClick={() => lastChannel()} />}
+        <Tile icon="sports" label="Sports" onClick={go({ name: 'sports' })} />
+        <Tile icon="search" label="Search" onClick={go({ name: 'search' })} />
+        <Tile icon="settings" label="Settings" onClick={go({ name: 'settings' })} />
+        <Tile icon="refresh" label="Reload" onClick={() => reload(true)} />
+        <Tile icon="account" label="Account" onClick={go({ name: 'settings', section: 'playlists' })} />
       </div>
 
-      {expires ? <footer class="dash-foot tnum">Expires: {new Date(expires).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}</footer> : null}
+      <footer class="dash-foot tnum">
+        {expires ? <span>Expiration: {new Date(expires).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}</span> : null}
+        {src ? <span>Logged in as: {src.user || src.name}</span> : null}
+      </footer>
     </div>
   );
 }

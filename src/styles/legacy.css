@@ -36,8 +36,9 @@
 .no-gap .vrow-meta > * + * { margin-top: 0.2rem; }
 .no-gap .prog-card > * + * { margin-top: 0.3rem; }
 /* Home tiles, the start-up table and the settings grid. */
-.no-gap .dash-row > * + * { margin-left: 1.2rem; }
-.no-gap .dash-tile > * + *, .no-gap .dash-small > * + * { margin-top: 0.4rem; }
+.no-gap .gx-big > * + * { margin-left: 2rem; }
+.no-gap .gx-small > * { margin: 0 0.55rem 0.55rem; }
+.no-gap .gx-tile > * + * { margin-top: 0.35rem; }
 .no-gap .set-tile > * + * { margin-top: 0.8rem; }
 .no-gap .upd-line > * + *, .no-gap .settings-crumb > * + * { margin-left: 0.6rem; }
 .no-gap .settings-top > * + * { margin-left: 2rem; }

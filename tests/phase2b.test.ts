@@ -22,7 +22,9 @@ describe('themes', () => {
     expect(importTheme('hello')).toBeNull();
   });
   it('derives the colour variables', () => {
-    expect(themeVars(DEFAULT_THEME)['--blue']).toBe('#1d9bf0');
+    expect(themeVars(DEFAULT_THEME)['--blue']).toBe('#d3122a');
+    expect(themeVars(DEFAULT_THEME)['--on-accent']).toBe('#ffffff');
+    expect(themeVars(PRESETS.find(p => p.name === 'Galaxy gold')!)['--on-accent']).toBe('#111111');
   });
   it('moves only the untouched old default to the new look', () => {
     expect(isOldDefault(OLD_DEFAULT_THEME)).toBe(true);
@@ -30,6 +32,7 @@ describe('themes', () => {
     expect(isOldDefault({ ...OLD_DEFAULT_THEME, backgroundImage: 'https://example.com/a.jpg' })).toBe(false);
     expect(isOldDefault(PRESETS.find(p => p.name === 'Matrix red'))).toBe(false);
     expect(isOldDefault(DEFAULT_THEME)).toBe(false);
+    expect(isOldDefault(PRESETS.find(p => p.name === 'Classic blue'))).toBe(true);
     expect(isOldDefault(undefined)).toBe(false);
   });
 });

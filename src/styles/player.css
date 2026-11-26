@@ -38,11 +38,11 @@
   transition: transform .12s var(--ease);
 }
 .pbtn svg { width: 1.4rem; height: 1.4rem; flex: none; }
-.pbtn.big { width: 4.2rem; height: 4.2rem; background: var(--grad); color: #fff; }
+.pbtn.big { width: 4.2rem; height: 4.2rem; background: var(--grad); color: var(--on-accent); }
 .pbtn.big svg { width: 1.7rem; height: 1.7rem; }
 .pbtn.on { color: #ffd166; }
 .pbtn:hover { background: #ffffff30; }
-.pbtn:focus { background: var(--grad); color: #fff; transform: scale(1.1); box-shadow: var(--glow); }
+.pbtn:focus { background: var(--grad); color: var(--on-accent); transform: scale(1.1); box-shadow: var(--glow); }
 
 .p-center { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: grid; place-items: center; pointer-events: none; }
 .p-center > * { pointer-events: auto; }
