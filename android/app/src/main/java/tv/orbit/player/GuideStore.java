@@ -51,8 +51,9 @@ final class GuideStore {
     private static SQLiteDatabase db;
     private static final Object LOCK = new Object();
 
-    private static File dbFile(Context c) { return new File(c.getFilesDir(), "guide.db"); }
-    static File indexFile(Context c) { return new File(c.getFilesDir(), "guide-index.json"); }
+    // v2 adds programme artwork, episode, category and rating columns.
+    private static File dbFile(Context c) { return new File(c.getFilesDir(), "guide2.db"); }
+    static File indexFile(Context c) { return new File(c.getFilesDir(), "guide2-index.json"); }
 
     private static SQLiteDatabase open(Context c) {
         synchronized (LOCK) {
@@ -126,9 +127,9 @@ final class GuideStore {
             // PRAGMAs that answer with a row must go through rawQuery; execSQL refuses them.
             try (Cursor c = out.rawQuery("PRAGMA journal_mode=OFF", null)) { c.moveToFirst(); } catch (Exception ignored) {}
             try (Cursor c = out.rawQuery("PRAGMA synchronous=OFF", null)) { c.moveToFirst(); } catch (Exception ignored) {}
-            out.execSQL("CREATE TABLE p (ch TEXT NOT NULL, s INTEGER NOT NULL, e INTEGER NOT NULL, t TEXT, d TEXT)");
+            out.execSQL("CREATE TABLE p (ch TEXT NOT NULL, s INTEGER NOT NULL, e INTEGER NOT NULL, t TEXT, d TEXT, st TEXT, ep TEXT, cat TEXT, img TEXT, rt TEXT)");
             out.beginTransaction();
-            SQLiteStatement ins = out.compileStatement("INSERT INTO p (ch, s, e, t, d) VALUES (?, ?, ?, ?, ?)");
+            SQLiteStatement ins = out.compileStatement("INSERT INTO p (ch, s, e, t, d, st, ep, cat, img, rt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             for (int f = 0; f < urls.size(); f++) {
                 String url = urls.get(f);
                 Counting counting = null;
@@ -161,13 +162,27 @@ final class GuideStore {
                                         && (keep.contains(ch) || wantedIds.contains(ch.toLowerCase(Locale.ROOT)));
                                 if (wanted) { s += offsetMs; e += offsetMs; }
                                 if (!wanted || e <= from || s >= to || e <= s) { skip(x); continue; }
-                                String title = null, desc = null;
+                                String title = null, desc = null, sub = null, ep = null, cat = null, img = null, rating = null;
                                 int depth = x.getDepth();
                                 while ((ev = x.next()) != XmlPullParser.END_DOCUMENT && !(ev == XmlPullParser.END_TAG && x.getDepth() == depth)) {
                                     if (ev != XmlPullParser.START_TAG) continue;
                                     String t = x.getName();
                                     if ("title".equals(t) && title == null) title = text(x);
                                     else if ("desc".equals(t) && desc == null) desc = text(x);
+                                    else if ("sub-title".equals(t) && sub == null) sub = text(x);
+                                    else if ("category".equals(t) && cat == null) cat = text(x);
+                                    else if ("episode-num".equals(t)) {
+                                        String sys = x.getAttributeValue(null, "system");
+                                        String v = text(x);
+                                        String label = "xmltv_ns".equals(sys) ? episodeLabel(v) : v;
+                                        if (label != null && !label.isEmpty() && (ep == null || "xmltv_ns".equals(sys))) ep = label;
+                                    } else if ("icon".equals(t) && img == null) { img = x.getAttributeValue(null, "src"); skip(x); }
+                                    else if ("rating".equals(t) && rating == null) {
+                                        int rd = x.getDepth(), rev;
+                                        while ((rev = x.next()) != XmlPullParser.END_DOCUMENT && !(rev == XmlPullParser.END_TAG && x.getDepth() == rd)) {
+                                            if (rev == XmlPullParser.START_TAG && "value".equals(x.getName())) rating = text(x);
+                                        }
+                                    }
                                     else skip(x);
                                 }
                                 if (desc != null && desc.length() > maxDesc) desc = desc.substring(0, maxDesc - 1).trim() + "…";
@@ -176,6 +191,11 @@ final class GuideStore {
                                 ins.bindLong(3, e);
                                 ins.bindString(4, title == null || title.isEmpty() ? "Untitled" : title);
                                 ins.bindString(5, desc == null ? "" : desc);
+                                ins.bindString(6, sub == null ? "" : sub);
+                                ins.bindString(7, ep == null ? "" : ep);
+                                ins.bindString(8, cat == null ? "" : cat);
+                                ins.bindString(9, img == null ? "" : img);
+                                ins.bindString(10, rating == null ? "" : rating);
                                 ins.executeInsert();
                                 ins.clearBindings();
                                 Integer n = counts.get(ch);
@@ -267,6 +287,18 @@ final class GuideStore {
         return res;
     }
 
+    /** xmltv_ns "1.4.0/1" (zero-based season.episode.part) -> "S2 E5". */
+    static String episodeLabel(String v) {
+        if (v == null) return null;
+        String[] parts = v.trim().split("\\.", -1);
+        StringBuilder sb = new StringBuilder();
+        try {
+            if (parts.length > 0 && !parts[0].trim().isEmpty()) sb.append("S").append(Integer.parseInt(parts[0].split("/")[0].trim()) + 1);
+            if (parts.length > 1 && !parts[1].trim().isEmpty()) { if (sb.length() > 0) sb.append(' '); sb.append("E").append(Integer.parseInt(parts[1].split("/")[0].trim()) + 1); }
+        } catch (NumberFormatException e) { return null; }
+        return sb.toString();
+    }
+
     private static String text(XmlPullParser x) throws Exception {
         StringBuilder sb = new StringBuilder();
         int depth = x.getDepth(), ev;
@@ -290,7 +322,7 @@ final class GuideStore {
         synchronized (LOCK) {
             for (int i = 0; i < chs.size(); i += 100) {
                 List<String> part = chs.subList(i, Math.min(chs.size(), i + 100));
-                StringBuilder q = new StringBuilder("SELECT ch, s, e, t, d FROM p WHERE e > ? AND s < ? AND ch IN (");
+                StringBuilder q = new StringBuilder("SELECT ch, s, e, t, d, st, ep, cat, img, rt FROM p WHERE e > ? AND s < ? AND ch IN (");
                 String[] args = new String[part.size() + 2];
                 args[0] = Long.toString(from);
                 args[1] = Long.toString(to);
@@ -316,7 +348,7 @@ final class GuideStore {
                         }
                         lastStart = s;
                         JSONArray row = new JSONArray();
-                        row.put(s).put(c.getLong(2)).put(c.getString(3)).put(c.getString(4));
+                        row.put(s).put(c.getLong(2)).put(c.getString(3)).put(c.getString(4)).put(c.getString(5)).put(c.getString(6)).put(c.getString(7)).put(c.getString(8)).put(c.getString(9));
                         out.append(row.toString());
                     }
                 }

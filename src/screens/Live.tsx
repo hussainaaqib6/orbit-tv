@@ -3,7 +3,8 @@
 // and OK on the channel that is already playing makes it full screen.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
-import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, numberOf, channelByNumber } from '../sources/library';
+import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber } from '../sources/library';
+import { isHidden } from '../sources/restrictions';
 import { progress, indexAt } from '../sources/epg';
 import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
@@ -16,6 +17,7 @@ import { cleanChannelName } from '../core/names';
 import { clock } from '../core/format';
 import * as P from '../player/controller';
 import { toast } from '../ui/overlays';
+import { ProgrammeMeta, ProgrammeImage } from '../ui/programme';
 
 const FAV = '\u0001fav', RECENT = '\u0001recent', ALL = '\u0001all';
 
@@ -35,7 +37,20 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const playingKey = playing?.key;
 
   const [group, setGroup] = useState<string>(() => initialGroup ?? playing?.group ?? (favs.length ? FAV : groups[0]?.name ?? ALL));
-  const list = useMemo(() => group === FAV ? favs : group === RECENT ? recent : group === ALL ? all : byGroup.get(group) ?? [], [group, all, favs, recent, byGroup]);
+  const chSort = (settings.value.sortByGroup[`live:${group}`] ?? 'default') as 'default' | 'az' | 'za' | 'watched';
+  const list = useMemo(() => {
+    const base = group === FAV ? favs : group === RECENT ? recent : group === ALL ? all : byGroup.get(group) ?? [];
+    if (chSort === 'default') return base;
+    const name = (c: Channel) => cleanChannelName(c.name).name;
+    if (chSort === 'watched') { const r = recentChannels.value; return [...base].sort((a, b) => (r.indexOf(a.key) + 1 || 1e9) - (r.indexOf(b.key) + 1 || 1e9)); }
+    const out = [...base].sort((a, b) => name(a).localeCompare(name(b), undefined, { numeric: true, sensitivity: 'base' }));
+    return chSort === 'za' ? out.reverse() : out;
+  }, [group, all, favs, recent, byGroup, chSort]);
+  const CH_SORTS = [{ id: 'default', label: 'Playlist order' }, { id: 'az', label: 'A–Z' }, { id: 'za', label: 'Z–A' }, { id: 'watched', label: 'Recently watched' }];
+  const cycleChSort = () => {
+    const next = CH_SORTS[(CH_SORTS.findIndex(x => x.id === chSort) + 1) % CH_SORTS.length].id;
+    updateSettings({ sortByGroup: { ...settings.value.sortByGroup, [`live:${group}`]: next } });
+  };
 
   const [hi, setHi] = useState<Channel | null>(null);
   const screen = useRef<HTMLDivElement>(null);
@@ -191,7 +206,10 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
         </aside>
 
         <section class="chlist">
-          <div class="chlist-head"><h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span></div>
+          <div class="chlist-head">
+            <h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
+            <button class="chip small" onClick={cycleChSort} aria-label="Change order"><Icon name="sort" />{CH_SORTS.find(x => x.id === chSort)!.label}</button>
+          </div>
           {list.length ? (
             <VirtualList items={list} rowRem={4.4} keyOf={c => c.key} startIndex={startIndex} jump={jump} navGroup="channels"
               onFocusIndex={i => highlight(list[i])}
@@ -227,7 +245,7 @@ const ChannelRow = memo(function ChannelRow({ c, i, playing, autofocus, showNumb
       <span class="num">{showNumbers ? numberOf(c) : ''}</span>
       <span class="logo"><Img src={c.logo} alt={name.name} /></span>
       <span class="meta">
-        <span class="name"><span class="clip">{name.name}</span>{name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}</span>
+        <span class="name"><span class="clip">{name.name}</span>{isHidden(settings.value, 'live', c.group) && <Icon name="hidden" class="hidden-mark" />}{name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}</span>
         <span class="now clip">{now ? now.title : 'No guide information'}</span>
         {now && <span class="bar"><i style={{ width: `${progress(now) * 100}%` }} /></span>}
       </span>
@@ -253,8 +271,14 @@ function ProgrammeInfo({ channel, isPlaying }: { channel: Channel; isPlaying: bo
       </div>
       {now ? (
         <>
-          <h2>{now.title}</h2>
-          <div class="when tnum"><span class="dot-live" />{clock(now.start)} – {clock(now.stop)}</div>
+          <div class="pi-now">
+            <ProgrammeImage p={now} />
+            <div style={{ minWidth: 0 }}>
+              <h2>{now.title}</h2>
+              <ProgrammeMeta p={now} />
+              <div class="when tnum"><span class="dot-live" />{clock(now.start)} – {clock(now.stop)}</div>
+            </div>
+          </div>
           <div class="livebar"><i style={{ width: `${progress(now) * 100}%` }} /></div>
           {now.desc && <p class="desc clamp3">{now.desc}</p>}
         </>

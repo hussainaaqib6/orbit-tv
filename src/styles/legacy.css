@@ -27,3 +27,14 @@
 .no-gap .fx-teams > * + * { margin-top: 0.3rem; }
 .no-gap .fxd-meta > * + * { margin-left: 0.9rem; }
 .no-gap .bf-side > * + *, .no-gap .bf-mid > * + * { margin-top: 0.4rem; }
+.no-gap .pmeta > * + * { margin-left: 0.45rem; }
+.no-gap .pi-now > * + * { margin-left: 0.9rem; }
+.no-gap .pin-dots > * + * { margin-left: 0.9rem; }
+.no-gap .theme-card > * + * { margin-top: 0.5rem; }
+.no-gap .swatch > * + * { margin-left: 0.25rem; }
+.no-gap .theme-editor > * + * { margin-left: 1.6rem; }
+.no-gap .tp-rail > * + *, .no-gap .tp-body > * + * { margin-top: 0.4rem; }
+.no-gap .menu-edit > * + * { margin-left: 0.5rem; }
+.no-gap .gstate > * + * { margin-left: 0.35rem; }
+.no-gap .vrow > * + * { margin-left: 1rem; }
+.no-gap .vrow-meta > * + * { margin-top: 0.2rem; }

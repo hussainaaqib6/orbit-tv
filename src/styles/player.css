@@ -38,7 +38,7 @@
   transition: transform .12s var(--ease);
 }
 .pbtn svg { width: 1.4rem; height: 1.4rem; flex: none; }
-.pbtn.big { width: 4.2rem; height: 4.2rem; background: linear-gradient(180deg, #e8192f, #a90c1f); color: #fff; }
+.pbtn.big { width: 4.2rem; height: 4.2rem; background: var(--grad); color: #fff; }
 .pbtn.big svg { width: 1.7rem; height: 1.7rem; }
 .pbtn.on { color: #ffd166; }
 .pbtn:hover { background: #ffffff30; }
@@ -60,7 +60,7 @@
 @keyframes panel-in { from { transform: translateX(-2rem); opacity: 0; } }
 
 .p-digits { position: absolute; top: 2rem; right: 2.6rem; font-size: 3.4rem; font-weight: 800; background: #000a; padding: 0.3rem 1.2rem; border-radius: var(--r-m); }
-.p-digits span { color: #ff4a60; animation: blink 1s steps(1) infinite; }
+.p-digits span { color: var(--cyan); animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* Phones and small screens */

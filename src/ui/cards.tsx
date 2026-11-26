@@ -9,6 +9,7 @@ import { onAction } from '../nav/keys';
 import { push } from '../nav/router';
 import { isFavourite, toggleFavourite, resume, nowNextFor, programmesFor, settings, updateSettings, guide, catalog, reloadGuide } from '../sources/library';
 import { programmesById } from '../sources/guideStore';
+import { isHidden } from '../sources/restrictions';
 import { progress } from '../sources/epg';
 import { canCatchup } from '../sources/catchup';
 import { cleanTitle, matchKey } from '../core/names';
@@ -39,8 +40,30 @@ export const PosterCard = memo(function PosterCard({ item, sub }: { item: Movie 
         <Img src={item.poster} alt={item.name} />
         {rp && rp.duration > 0 && <div class="progress"><i style={{ width: `${(rp.position / rp.duration) * 100}%` }} /></div>}
       </div>
-      <div class="t clip">{cleanTitle(item.name).title}</div>
+      <div class="t clip">{isHidden(settings.value, item.kind === 'movie' ? 'movie' : 'series', item.group) && <Icon name="hidden" class="hidden-mark" />}{cleanTitle(item.name).title}</div>
       {sub !== undefined ? <div class="s clip">{sub}</div> : item.year ? <div class="s">{item.year}</div> : null}
+    </button>
+  );
+});
+
+/** Films and series as a row: poster beside the details (Detailed list), or text only (Compact list). */
+export const PosterRow = memo(function PosterRow({ item, index, compact, rowProps: rp }: { item: Movie | Series; index: number; compact: boolean; rowProps: Record<string, unknown> }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useItemMenu(ref, () => openItemMenu(item));
+  const res = resume.value[item.key];
+  const t = cleanTitle(item.name);
+  const bits = [item.year || t.year || '', item.rating ? `★ ${item.rating.toFixed(1)}` : '', item.group].filter(Boolean).join('  ·  ');
+  const plot = item.kind === 'series' ? item.plot : '';
+  void index;
+  return (
+    <button class={`vrow${compact ? ' compact' : ''}`} ref={ref} {...rp} onClick={() => openItem(item)}>
+      {!compact && <span class="vrow-art"><Img src={item.poster} alt={item.name} />{res && res.duration > 0 && <span class="progress"><i style={{ width: `${(res.position / res.duration) * 100}%` }} /></span>}</span>}
+      <span class="vrow-meta">
+        <b class="clip">{t.title}</b>
+        <span class="vrow-bits clip">{bits}</span>
+        {!compact && plot && <span class="vrow-plot clamp2">{plot}</span>}
+      </span>
+      {isFavourite(item.key) && <Icon name="heart" class="filled" />}
     </button>
   );
 });
@@ -72,6 +95,13 @@ export function openItemMenu(it: Item) {
         {it.kind === 'movie' && <SheetItem icon={<Icon name="play" />} label={resume.value[it.key] ? 'Resume' : 'Play'} autofocus onClick={() => { closeAllSheets(); P.play(moviePlayable(it)); }} />}
         {it.kind === 'movie' && resume.value[it.key] && <SheetItem icon={<Icon name="restart" />} label="Play from the start" onClick={() => { closeAllSheets(); P.play(moviePlayable(it), { fromStart: true }); }} />}
         {it.kind !== 'live' && <SheetItem icon={<Icon name="info" />} label="Details" autofocus={it.kind === 'series'} onClick={() => { closeAllSheets(); openItem(it); }} />}
+        {isHidden(settings.value, it.kind === 'live' ? 'live' : it.kind === 'movie' ? 'movie' : 'series', it.group) && (
+          <SheetItem icon={<Icon name="hidden" />} label="Show this category" sub={`${it.group} is hidden`} onClick={() => {
+            const k = `${it.kind === 'live' ? 'live' : it.kind === 'movie' ? 'movie' : 'series'}:${it.group}`;
+            updateSettings({ hiddenGroups: settings.value.hiddenGroups.filter(x => x !== k) });
+            toast(`${it.group} is shown again`); closeAllSheets();
+          }} />
+        )}
         <SheetItem icon={<Icon name="heart" />} label={fav ? 'Remove from favourites' : 'Add to favourites'} onClick={() => toast(toggleFavourite(it.key) ? 'Added to favourites' : 'Removed from favourites')} />
         {it.kind === 'live' && it.catchup && <SheetItem icon={<Icon name="history" />} label="Catch up" sub={`Last ${it.catchup.days} days`} onClick={() => replaceSheet(`Catch up · ${it.name}`, () => <CatchupList channel={it} />)} />}
         {it.kind === 'live' && <SheetItem icon={<Icon name="guide" />} label="Choose guide channel" sub={programmesFor(it).length ? 'Guide matched' : 'No guide yet'} onClick={() => replaceSheet(`Guide for ${it.name}`, () => <GuideMatch channel={it} />)} />}

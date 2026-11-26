@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { connectionsLabel, refreshConnections } from '../services/connections';
 import type { ComponentChildren } from 'preact';
-import { sources, settings, updateSettings, updateSource, removeSource, reload, reloadGuide, loading, type Settings as S, type Aspect } from '../sources/library';
+import { rawCatalog, groupsOf, sources, settings, updateSettings, updateSource, removeSource, reload, reloadGuide, loading, type Settings as S, type Aspect } from '../sources/library';
 import type { Source } from '../sources/types';
 import { SourceForm } from './SourceForm';
 import { PairingPanel, pairingAvailable } from './PairingPanel';
@@ -12,11 +12,15 @@ import { PLATFORM } from '../core/platform';
 import { focusEl } from '../nav/focus';
 import { defaults } from '../core/platform';
 import { APP_NAME } from '../core/brand';
+import { groupKey, isAdultGroup, unlocked, type Kind } from '../sources/restrictions';
+import { requirePin, setNewPin } from '../ui/pin';
+import { RemoteButtons, MenuSettings, Themes } from './SettingsMore';
 
 const SECTIONS = [
   { id: 'playlists', label: 'Playlists' }, { id: 'appearance', label: 'Appearance' }, { id: 'player', label: 'Player' },
   { id: 'subtitles', label: 'Subtitles' }, { id: 'guide', label: 'TV guide' }, { id: 'sports', label: 'Sports' },
-  { id: 'general', label: 'General' }, { id: 'services', label: 'Artwork and info' }, { id: 'about', label: 'About' },
+  { id: 'categories', label: 'Categories' }, { id: 'parental', label: 'Parental controls' }, { id: 'remote', label: 'Remote buttons' },
+  { id: 'menu', label: 'Side menu' }, { id: 'themes', label: 'Colours & theme' }, { id: 'general', label: 'General' }, { id: 'services', label: 'Artwork and info' }, { id: 'about', label: 'About' },
 ];
 
 /**
@@ -51,6 +55,13 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'extraEpg', label: 'Extra guide links', section: 'guide', words: 'epg xmltv url source' },
   { id: 'matchCards', label: 'Match cards', section: 'sports', words: 'sports fixtures classic big cards football' },
   { id: 'sportsMyChannels', label: 'My channels only', section: 'sports', words: 'sports fixtures streams available hide' },
+  { id: 'categories', label: 'Hide categories', section: 'categories', words: 'hide hidden categories groups folders filter show' },
+  { id: 'pin', label: 'Parental PIN', section: 'parental', words: 'parental controls pin lock kids children adult restrictions password' },
+  { id: 'lockAdult', label: 'Lock adult categories', section: 'parental', words: 'adult xxx 18 parental lock' },
+  { id: 'lockSettings', label: 'Lock settings with the PIN', section: 'parental', words: 'parental settings lock pin' },
+  { id: 'remote', label: 'Remote buttons', section: 'remote', words: 'remote buttons keys shortcuts red green yellow blue colour mapping' },
+  { id: 'menu', label: 'Side menu items', section: 'menu', words: 'menu order hide items navigation rail' },
+  { id: 'themes', label: 'Colours & theme', section: 'themes', words: 'theme colours colors accent background font size appearance skin export import share' },
   { id: 'askBeforeExit', label: 'Ask before leaving the app', section: 'general', words: 'exit quit close confirm' },
   { id: 'tmdbKey', label: 'TMDB key (artwork and info)', section: 'services', words: 'tmdb artwork posters backdrops plot cast metadata' },
   { id: 'about', label: 'About and remote control', section: 'about', words: 'version help remote buttons keys' },
@@ -68,7 +79,7 @@ export function searchSettings(q: string) {
     .filter(x => x.score > 0).sort((a, b) => b.score - a.score).map(x => x.e).slice(0, 12);
 }
 
-function Toggle({ id, label, sub, on, onChange }: { id?: string; label: string; sub?: string; on: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ id, label, sub, on, onChange }: { id?: string; label: string; sub?: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button class={`toggle${on ? ' on' : ''}`} data-setting={id} role="switch" aria-checked={on} onClick={() => onChange(!on)}>
       <span>{label}{sub && <div class="muted" style={{ fontSize: '0.88rem' }}>{sub}</div>}</span>
@@ -77,7 +88,7 @@ function Toggle({ id, label, sub, on, onChange }: { id?: string; label: string; 
   );
 }
 
-function Choice<T extends string | number>({ id, label, value, options, onChange }: { id?: string; label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) {
+export function Choice<T extends string | number>({ id, label, value, options, onChange }: { id?: string; label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) {
   return (
     <div style={{ marginBottom: '1.1rem' }} data-setting={id}>
       <div class="muted" style={{ marginBottom: '0.5rem' }}>{label}</div>
@@ -262,6 +273,84 @@ function Appearance() {
   );
 }
 
+type GroupState = 'shown' | 'hidden' | 'locked';
+
+function Categories() {
+  const s = settings.value;
+  const c = rawCatalog.value;
+  const [kind, setKind] = useState<Kind>('live');
+  const list = groupsOf<{ group: string }>(kind === "live" ? c.live : kind === "movie" ? c.movies : c.series);
+  const state = (g: string): GroupState => s.lockedGroups.includes(groupKey(kind, g)) ? 'locked' : s.hiddenGroups.includes(groupKey(kind, g)) ? 'hidden' : 'shown';
+  const cycle = async (g: string) => {
+    const k = groupKey(kind, g);
+    const cur = state(g);
+    const next: GroupState = cur === 'shown' ? 'hidden' : cur === 'hidden' && s.pinHash ? 'locked' : 'shown';
+    if (cur === 'locked' && !(await requirePin('Unlock this category'))) return;
+    updateSettings({
+      hiddenGroups: next === 'hidden' ? [...s.hiddenGroups, k] : s.hiddenGroups.filter(x => x !== k),
+      lockedGroups: next === 'locked' ? [...s.lockedGroups, k] : s.lockedGroups.filter(x => x !== k),
+    });
+  };
+  const label: Record<GroupState, string> = { shown: 'Shown', hidden: 'Hidden', locked: 'Needs PIN' };
+  return (
+    <>
+      <h2>Categories</h2>
+      <p class="muted" style={{ maxWidth: '44rem', marginBottom: '1rem' }}>OK on a category switches it between shown and hidden{s.pinHash ? ', and needing the PIN' : ''}. Hidden categories disappear from lists, search, the guide and sports; favourites from them stay, marked with a crossed-out eye.</p>
+      <div class="choice" data-nav-group style={{ marginBottom: '1rem' }}>
+        {([['live', 'Channels'], ['movie', 'Films'], ['series', 'Series']] as [Kind, string][]).map(([k, l]) => <button key={k} class={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{l}</button>)}
+      </div>
+      <div class="stack" data-setting="categories">
+        {list.map(g => {
+          const st = state(g.name);
+          return (
+            <button key={g.name} class={`toggle${st === 'shown' ? ' on' : ''}`} onClick={() => cycle(g.name)}>
+              <span>{g.name} <span class="muted">({g.count})</span>{isAdultGroup(g.name) && s.lockAdult && s.pinHash && <div class="muted" style={{ fontSize: '0.85rem' }}>Adult: needs the PIN</div>}</span>
+              <span class={`gstate ${st}`}>{st === 'hidden' && <Icon name="hidden" />}{label[st]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function Parental() {
+  const s = settings.value;
+  const [ok, setOk] = useState(!s.pinHash || unlocked.value);
+  if (!ok) {
+    return (
+      <>
+        <h2>Parental controls</h2>
+        <p class="muted" style={{ marginBottom: '1rem' }}>These settings are protected by your PIN.</p>
+        <button class="btn primary" onClick={async () => setOk(await requirePin('Change parental controls'))}>Enter PIN</button>
+      </>
+    );
+  }
+  return (
+    <>
+      <h2>Parental controls</h2>
+      <div class="stack" style={{ marginBottom: '1.4rem' }} data-setting="pin">
+        {!s.pinHash ? (
+          <button class="btn primary" style={{ alignSelf: 'flex-start' }} onClick={async () => toast((await setNewPin()) ? 'PIN set' : 'PIN not changed', false)}>Set a PIN</button>
+        ) : (
+          <div class="row">
+            <button class="btn" onClick={async () => toast((await setNewPin()) ? 'PIN changed' : 'PIN not changed')}>Change PIN</button>
+            <button class="btn" onClick={() => { unlocked.value = false; setOk(false); toast('Locked'); }}>Lock now</button>
+            <button class="btn danger" onClick={async () => { if (await confirmDialog('Remove the PIN?', 'Locked categories will be shown to everyone.', 'Remove')) { updateSettings({ pinHash: '', lockedGroups: [] }); toast('PIN removed'); } }}>Remove PIN</button>
+          </div>
+        )}
+      </div>
+      {s.pinHash && (
+        <div class="stack">
+          <Toggle id="lockAdult" label="Lock adult categories" sub="Categories named Adult, XXX, 18+ and similar need the PIN" on={s.lockAdult} onChange={v => updateSettings({ lockAdult: v })} />
+          <Toggle id="lockSettings" label="Lock settings with the PIN" sub="Settings asks for the PIN once each time the app starts" on={s.lockSettings} onChange={v => updateSettings({ lockSettings: v })} />
+        </div>
+      )}
+      <p class="hint" style={{ marginTop: '1.2rem', maxWidth: '44rem' }}>Choose which categories need the PIN in Settings → Categories. While unlocked, everything shows until the app closes or you press Lock now. Locked content can't be reached through search, favourites, the guide, sports or channel numbers.</p>
+    </>
+  );
+}
+
 function SportsSettings() {
   const s = settings.value;
   return (
@@ -307,6 +396,7 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
   const [flash, setFlash] = useState(highlight ?? '');
   const body: Record<string, () => ComponentChildren> = {
     playlists: Playlists, appearance: Appearance, player: Player, subtitles: Subtitles, guide: GuideSettings, sports: SportsSettings,
+    categories: Categories, parental: Parental, remote: RemoteButtons, menu: MenuSettings, themes: Themes,
     general: General, services: Services, about: About,
   };
   const Body = body[cur] ?? Playlists;
@@ -328,6 +418,16 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
   }, [flash, cur]);
 
   const go = (sec: string, id: string) => { setQ(''); setCur(sec); setFlash(id); };
+  const s0 = settings.value;
+  if (s0.pinHash && s0.lockSettings && !unlocked.value) {
+    return (
+      <div class="screen opaque"><div class="empty">
+        <h2>Settings are locked</h2>
+        <p>Enter your PIN to change settings.</p>
+        <button class="btn primary" data-autofocus onClick={() => requirePin('Open settings')}>Enter PIN</button>
+      </div></div>
+    );
+  }
   return (
     <div class="screen opaque">
       <div class="settings">
