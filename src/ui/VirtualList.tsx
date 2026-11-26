@@ -57,12 +57,15 @@ export function VirtualList<T>(p: VirtualListProps<T>) {
     return () => ro.disconnect();
   }, [p.rowRem]);
 
-  // A new list (another category): open it at the start index.
+  // A new list (another category): open it at the start index, keeping focus in the list if it had it.
+  const hadFocus = useRef(false);
+  hadFocus.current = !!box.current?.contains(document.activeElement);
   useLayoutEffect(() => {
     const n = p.items.length;
     const i = Math.min(Math.max(0, p.startIndex ?? 0), Math.max(0, n - 1));
     const el = box.current!;
     el.scrollTop = Math.max(0, i * rowPx.current - el.clientHeight / 2 + rowPx.current / 2);
+    if (hadFocus.current && n) pendingFocus.current = i;
     update();
   }, [p.items]);
 
@@ -90,11 +93,26 @@ export function VirtualList<T>(p: VirtualListProps<T>) {
     if (row) { focusEl(row, false); pendingFocus.current = null; }
   });
 
+  // A held key repeats faster than a TV stick can draw; collect the moves and apply them once a frame.
+  const queued = useRef<{ target: number; raf: number } | null>(null);
+  const queueMove = (from: number, delta: number) => {
+    const q = queued.current;
+    const base = q ? q.target : from;
+    const target = Math.max(0, Math.min(props.current.items.length - 1, base + delta));
+    if (q) { q.target = target; return; }
+    queued.current = { target, raf: requestAnimationFrame(() => { const t = queued.current!.target; queued.current = null; moveTo(t); }) };
+  };
+
   useEffect(() => onAction(box.current!, (a, d) => {
     const cur = document.activeElement as HTMLElement | null;
     const idxAttr = cur?.closest<HTMLElement>('[data-index]')?.dataset.index;
     if (idxAttr == null) return;
     const i = +idxAttr;
+    if (d.repeat && (a === 'up' || a === 'down')) {
+      if (a === 'up' && i === 0 && !queued.current) return true;
+      queueMove(i, a === 'up' ? -1 : 1);
+      return true;
+    }
     if (props.current.onRowAction?.(a, i) === true) return true;
     const page = Math.max(1, Math.floor(box.current!.clientHeight / rowPx.current) - 1);
     switch (a) {

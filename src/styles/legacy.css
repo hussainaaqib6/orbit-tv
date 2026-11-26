@@ -1,0 +1,22 @@
+/* Fallbacks for older TV WebViews (Chromium 80–83, as on some Fire TV and Android TV devices),
+   which lay out flex rows but ignore `gap` there. main.tsx adds .no-gap to <html> when needed. */
+.no-gap .rail-panel > * + * { margin-top: 0.25rem; }
+.no-gap .rail-brand > * + * { margin-left: 0.8rem; }
+.no-gap .rail-item > * + * { margin-left: 1rem; }
+.no-gap .btn > * + *, .no-gap .chip > * + *, .no-gap .pbtn > * + * { margin-left: 0.5rem; }
+.no-gap .row > *, .no-gap .choice > * { margin: 0 0.6rem 0.6rem 0; }
+.no-gap .toggle > * + * { margin-left: 1rem; }
+.no-gap .page-head > * + * { margin-left: 1.5rem; }
+.no-gap .shelf-row > * + * { margin-left: 1rem; }
+.no-gap .cat > * + * { margin-left: 0.6rem; }
+.no-gap .chlist-head > * + *, .no-gap .vod-head > * + * { margin-left: 0.8rem; }
+.no-gap .chrow .name > * + * { margin-left: 0.45rem; }
+.no-gap .eq > * + * { margin-left: 2px; }
+.no-gap .pi-channel > * + * { margin-left: 0.7rem; }
+.no-gap .facts > * { margin: 0 0.45rem 0.45rem 0; }
+.no-gap .guide-head > * + * { margin-left: 0.6rem; }
+.no-gap .guide-ch > * + * { margin-left: 0.7rem; }
+.no-gap .sheet-head > * + *, .no-gap .sheet-item > * + * { margin-left: 0.9rem; }
+.no-gap .status-pill > * + * { margin-left: 0.6rem; }
+.no-gap .p-top > * + * { margin-left: 1.2rem; }
+.no-gap .p-buttons > * { margin: 0 0.6rem 0.4rem 0; }

@@ -80,9 +80,14 @@ export function VirtualGrid<T>(p: VirtualGridProps<T>) {
     if (card) { focusEl(card, false); pending.current = null; }
   });
 
-  useEffect(() => onAction(box.current!, a => {
+  // Held keys: apply at most one move per frame.
+  const busy = useRef(false);
+  useEffect(() => onAction(box.current!, (a, d) => {
     const cell = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-cell]');
     if (!cell) return;
+    if (d.repeat && busy.current) return true;
+    busy.current = true;
+    requestAnimationFrame(() => { busy.current = false; });
     const i = +cell.dataset.cell!;
     const n = props.current.items.length, c = mRef.current.cols;
     const page = Math.max(1, Math.floor(box.current!.clientHeight / mRef.current.rowPx)) * c;

@@ -37,6 +37,18 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
   const [sort, setSort] = useState<Sort>('added');
   const screen = useRef<HTMLDivElement>(null);
   const catTimer = useRef(0);
+  const catsRef = useRef<HTMLElement>(null);
+  const pendingGroup = useRef<string | null>(null);
+  // Right from the categories: switch to the highlighted category now, then go to the first poster.
+  useEffect(() => onAction(catsRef.current!, a => {
+    if (a !== 'right') return;
+    clearTimeout(catTimer.current);
+    const g = pendingGroup.current;
+    pendingGroup.current = null;
+    if (g !== null) setGroup(g);
+    requestAnimationFrame(() => requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))));
+    return true;
+  }), []);
 
   const list = useMemo(() => {
     const base = group === ALL ? items : group === FAV ? favs : group === CONT ? inProgress : byGroup.get(group) ?? [];
@@ -67,8 +79,12 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
 
   const cat = (key: string, label: string, n: number) => (
     <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => { clearTimeout(catTimer.current); catTimer.current = window.setTimeout(() => setGroup(key), 400); }}
-      onClick={() => { clearTimeout(catTimer.current); setGroup(key); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))); }}>
+      onFocus={() => {
+        clearTimeout(catTimer.current);
+        pendingGroup.current = key;
+        catTimer.current = window.setTimeout(() => { pendingGroup.current = null; setGroup(key); }, 400);
+      }}
+      onClick={() => { clearTimeout(catTimer.current); pendingGroup.current = null; setGroup(key); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))); }}>
       <span class="clip">{label}</span><span class="n">{n}</span>
     </button>
   );
@@ -78,7 +94,7 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
   return (
     <div class="screen opaque" ref={screen}>
       <div class={`browse${browsing ? ' folded' : ''}`}>
-        <aside class="cats" data-nav-group="cats">
+        <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={catsRef}>
           <div class="cats-head"><h1>{title}</h1></div>
           <div class="cats-list">
             {cat(ALL, `All ${title.toLowerCase()}`, items.length)}

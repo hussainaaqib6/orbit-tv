@@ -52,7 +52,7 @@ export function Rail() {
   return (
     // The rail keeps a fixed width in the layout; the panel inside opens over the screen, so opening
     // the menu never makes the screen beside it re-layout (which is slow on a TV stick).
-    <nav class={`rail${open ? ' open' : ''}`} ref={ref} aria-label="Main menu" data-nav-group="rail">
+    <nav class={`rail${open ? ' open' : ''}`} ref={ref} aria-label="Main menu" data-nav-group="rail" data-nav-scope="right">
       <div class="rail-panel">
         <div class="rail-brand"><OrbitMark /><b>Orbit</b></div>
         {GROUPS.map((g, i) => [i > 0 && <div class="rail-sep" key={`s${i}`} />, ...g.map(item)])}

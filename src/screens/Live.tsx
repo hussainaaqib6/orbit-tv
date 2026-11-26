@@ -67,12 +67,28 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     if (last) P.playChannel(last, { preview: true, channels: byGroup.get(last.group) ?? all });
   }, []);
 
+  // When the channel changes (zapping in full screen), the details show the new one again.
+  useEffect(() => { setHi(null); }, [playingKey]);
+
   // Where the list opens: on the playing channel. Worked out once per list so it doesn't jump about.
   const startIndex = useMemo(() => Math.max(0, list.findIndex(c => c.key === playingKey)), [list]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();
 
+  // Coming back from full screen: focus goes to the channel that is playing, in this list.
+  const lastMode = useRef(P.mode.value);
+  useEffect(() => {
+    const was = lastMode.current;
+    lastMode.current = P.mode.value;
+    if (was !== 'full' || P.mode.value === 'full') return;
+    const i = listRef.current.findIndex(c => c.key === P.current.value?.channel?.key);
+    setJump({ index: Math.max(0, i), id: Date.now() });
+  }, [P.mode.value]);
+
+
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
+    clearTimeout(hiTimer.current);
+    setHi(c);
     if (P.current.value?.channel?.key === c.key && P.mode.value === 'preview' && !P.error.value) {
       P.channelList.value = listRef.current;
       P.enterFull();
@@ -86,10 +102,19 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     hiTimer.current = window.setTimeout(() => setHi(c), 180);
   }, []);
 
+  // Right from the categories: switch to the highlighted category now (if it hasn't yet), then go
+  // into its list, at the playing channel if it is there.
+  const pendingGroup = useRef<string | null>(null);
   useEffect(() => onAction(cats.current!, a => {
     if (a !== 'right') return;
-    const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
-    focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
+    clearTimeout(catTimer.current);
+    const g = pendingGroup.current;
+    pendingGroup.current = null;
+    if (g !== null) setGroup(g);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
+      focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
+    }));
     return true;
   }), []);
 
@@ -113,9 +138,14 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   const cat = (key: string, label: string, n: number) => (
     <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => { clearTimeout(catTimer.current); catTimer.current = window.setTimeout(() => setGroup(key), 400); }}
+      onFocus={() => {
+        clearTimeout(catTimer.current);
+        pendingGroup.current = key;
+        catTimer.current = window.setTimeout(() => { pendingGroup.current = null; setGroup(key); }, 400);
+      }}
       onClick={() => {
         clearTimeout(catTimer.current);
+        pendingGroup.current = null;
         setGroup(key);
         requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.chlist [data-index]')));
       }}>
@@ -130,7 +160,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   return (
     <div class="screen" ref={screen}>
       <div class="live">
-        <aside class="cats" data-nav-group="cats" ref={cats}>
+        <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={cats}>
           <div class="cats-head"><h1>Live TV</h1></div>
           <div class="cats-list">
             {favs.length > 0 && cat(FAV, 'Favourites', favs.length)}
