@@ -48,7 +48,16 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.zip.GZIPInputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -199,6 +208,72 @@ public class OrbitPlayerPlugin extends Plugin {
         o.put("action", action);
         o.put("repeat", repeat);
         notifyListeners("key", o);
+    }
+
+    /* ------------------------------ downloads ------------------------------ */
+
+    private final ExecutorService downloads = Executors.newFixedThreadPool(2);
+
+    /**
+     * Downloads a URL into the app's cache and returns the file path. Big playlists (Xtream film and
+     * series lists can be tens of megabytes) are read by the WebView straight from that file, instead of
+     * being parsed natively and copied across the bridge, which can stall a Fire TV Stick for minutes.
+     */
+    @PluginMethod
+    public void download(PluginCall call) {
+        String u = call.getString("url");
+        String name = call.getString("name", "download");
+        JSObject hs = call.getObject("headers", new JSObject());
+        int timeout = call.getInt("timeoutMs", 60000);
+        if (u == null) { call.reject("No address"); return; }
+        downloads.execute(() -> {
+            HttpURLConnection c = null;
+            try {
+                URL target = new URL(u);
+                int redirects = 0;
+                while (true) {
+                    c = (HttpURLConnection) target.openConnection();
+                    c.setConnectTimeout(20000);
+                    c.setReadTimeout(timeout);
+                    c.setInstanceFollowRedirects(false);
+                    c.setRequestProperty("User-Agent", "VLC/3.0.21 LibVLC/3.0.21");
+                    c.setRequestProperty("Accept-Encoding", "gzip");
+                    Iterator<String> keys = hs.keys();
+                    while (keys.hasNext()) { String k = keys.next(); c.setRequestProperty(k, hs.getString(k)); }
+                    int code = c.getResponseCode();
+                    // Follow redirects, including http <-> https, which HttpURLConnection will not do itself.
+                    if (code >= 300 && code < 400 && c.getHeaderField("Location") != null && redirects++ < 5) {
+                        target = new URL(target, c.getHeaderField("Location"));
+                        c.disconnect();
+                        continue;
+                    }
+                    break;
+                }
+                int status = c.getResponseCode();
+                File out = new File(getContext().getCacheDir(), "orbit-" + name.replaceAll("[^A-Za-z0-9_-]", "_"));
+                InputStream in = status >= 400 ? c.getErrorStream() : c.getInputStream();
+                if (in != null && "gzip".equalsIgnoreCase(c.getContentEncoding())) in = new GZIPInputStream(in);
+                long size = 0;
+                try (OutputStream os = new FileOutputStream(out)) {
+                    if (in != null) {
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) { os.write(buf, 0, n); size += n; }
+                        in.close();
+                    }
+                }
+                JSObject r = new JSObject();
+                r.put("status", status);
+                r.put("path", out.getAbsolutePath());
+                r.put("size", size);
+                r.put("contentType", c.getContentType());
+                call.resolve(r);
+            } catch (Exception e) {
+                call.reject(e.getClass().getSimpleName() + ": " + e.getMessage());
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        });
     }
 
     @PluginMethod
@@ -593,6 +668,7 @@ public class OrbitPlayerPlugin extends Plugin {
     protected void handleOnDestroy() {
         super.handleOnDestroy();
         main.removeCallbacks(ticker);
+        downloads.shutdownNow();
         if (player != null) { player.release(); player = null; }
         if (instance == this) instance = null;
     }

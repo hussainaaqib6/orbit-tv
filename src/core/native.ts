@@ -21,6 +21,8 @@ export interface OrbitPlayerPlugin {
   setMuted(o: { muted: boolean }): Promise<void>;
   selectTrack(o: { type: 'audio' | 'text'; id: string | null }): Promise<void>;
   exitApp(): Promise<void>;
+  /** Downloads to the app cache; read the file with fetch(Capacitor.convertFileSrc(path)). */
+  download(o: { url: string; name: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<{ status: number; path: string; size: number; contentType?: string }>;
   addListener(ev: 'key', fn: (e: NativeKeyEvent) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'state', fn: (e: NativeState) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'time', fn: (e: NativeTime) => void): Promise<PluginListenerHandle>;

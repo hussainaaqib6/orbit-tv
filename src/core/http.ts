@@ -1,7 +1,8 @@
 // HTTP for playlists, guides and APIs.
 // IPTV servers almost never send CORS headers, so on phones/TVs requests go through the native
 // HTTP stack, and on desktop through Electron's main process. Plain fetch is the browser fallback.
-import { CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { OrbitPlayer } from './native';
 import { NATIVE, PLATFORM, PLAYER_UA } from './platform';
 
 export class HttpError extends Error {
@@ -52,7 +53,7 @@ async function raw(url: string, o: RequestOptions, type: 'text' | 'bytes'): Prom
     });
     let data: string | Uint8Array;
     if (type === 'bytes') data = typeof r.data === 'string' ? base64ToBytes(r.data) : new TextEncoder().encode(JSON.stringify(r.data));
-    else data = typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+    else data = typeof r.data === 'string' ? r.data : JSON.stringify(r.data); // small replies only (Android GETs use nativeGet)
     return { status: r.status, data, headers: lowerKeys(r.headers) };
   }
   if (PLATFORM === 'electron' && window.orbitDesktop) {
@@ -97,6 +98,7 @@ export async function getRange(url: string, start: number, length: number): Prom
 }
 
 export async function getBytes(url: string, o: RequestOptions = {}): Promise<Uint8Array> {
+  if (useNativeGet(o)) return new Uint8Array(await (await nativeGet(url, o)).arrayBuffer());
   const r = await raw(url, o, 'bytes');
   check(url, r);
   return r.data as Uint8Array;
@@ -113,9 +115,33 @@ export async function getText(url: string, o: RequestOptions = {}): Promise<stri
   return new TextDecoder().decode(b);
 }
 
+let downloadN = 0;
+
+/**
+ * Android: GET into a cache file natively, then let the WebView read it. This avoids Capacitor's HTTP
+ * layer, which parses JSON natively and copies the whole result across the bridge (very slow for big
+ * Xtream lists on a Fire TV Stick).
+ */
+async function nativeGet(url: string, o: RequestOptions): Promise<Response> {
+  const r = await OrbitPlayer.download({ url, name: `dl${downloadN++ % 8}`, headers: o.headers, timeoutMs: o.timeoutMs ?? 120000 });
+  if (r.status >= 400 || r.status === 0) {
+    let body = '';
+    try { body = (await (await fetch(Capacitor.convertFileSrc(r.path))).text()).slice(0, 500); } catch {}
+    throw new HttpError(`HTTP ${r.status} from ${hostOf(url)}`, r.status, body);
+  }
+  return fetch(Capacitor.convertFileSrc(r.path), { cache: 'no-store' });
+}
+const useNativeGet = (o: RequestOptions) => PLATFORM === 'android' && (o.method ?? 'GET') === 'GET' && !o.body;
+
 export async function request<T = unknown>(url: string, o: RequestOptions = {}, type: ResponseType = 'json'): Promise<T> {
   const headers = { Accept: type === 'json' ? 'application/json' : '*/*', ...o.headers };
   if (type === 'bytes') return getBytes(url, { ...o, headers }) as Promise<T>;
+  if (useNativeGet(o)) {
+    const res = await nativeGet(url, { ...o, headers });
+    const text = await res.text();
+    if (type === 'text') return text as T;
+    try { return (text ? JSON.parse(text) : null) as T; } catch { throw new Error(`Unexpected reply from ${hostOf(url)}`); }
+  }
   const r = await raw(url, { ...o, headers }, 'text');
   check(url, r);
   const text = r.data as string;

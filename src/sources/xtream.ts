@@ -30,7 +30,8 @@ export function xtLiveUrl(src: Source, streamId: number, ext: 'ts' | 'm3u8'): st
   return `${xtBase(src.server ?? '')}/live/${u}/${p}/${streamId}.${ext}`;
 }
 
-export async function loadXtream(src: Source): Promise<Catalog> {
+export async function loadXtream(src: Source, progress: (msg: string) => void = () => {}): Promise<Catalog> {
+  progress(`Signing in to ${src.name}…`);
   const info = await api<XtInfo>(src, '');
   const ui = info?.user_info;
   if (!ui || +(ui.auth ?? 0) === 0) throw new Error('Login failed. Check the server address, username and password.');
@@ -40,12 +41,22 @@ export async function loadXtream(src: Source): Promise<Catalog> {
 
   const base = xtBase(src.server ?? '');
   const { u, p } = creds(src);
-  const list = <T>(action: string) => api<T[]>(src, action).then(x => (Array.isArray(x) ? x : [])).catch(() => [] as T[]);
-  const [lc, ls, vc, vs, sc, ss] = await Promise.all([
-    list<XtCategory>('get_live_categories'), list<XtLive>('get_live_streams'),
-    list<XtCategory>('get_vod_categories'), list<XtVod>('get_vod_streams'),
-    list<XtCategory>('get_series_categories'), list<XtSeries>('get_series'),
-  ]);
+  // One list at a time: film lists can be tens of megabytes, and a TV stick has little memory to spare.
+  const failed: string[] = [];
+  const list = <T>(action: string, what: string) => api<T[]>(src, action)
+    .then(x => (Array.isArray(x) ? x : []))
+    .catch(() => { failed.push(what); return [] as T[]; });
+  progress(`Loading channels from ${src.name}…`);
+  const lc = await list<XtCategory>('get_live_categories', 'channel categories');
+  const ls = await list<XtLive>('get_live_streams', 'channels');
+  progress(`Loading films from ${src.name}…`);
+  const vc = await list<XtCategory>('get_vod_categories', 'film categories');
+  const vs = await list<XtVod>('get_vod_streams', 'films');
+  progress(`Loading series from ${src.name}…`);
+  const sc = await list<XtCategory>('get_series_categories', 'series categories');
+  const ss = await list<XtSeries>('get_series', 'series');
+  progress(`Sorting ${(ls.length + vs.length + ss.length).toLocaleString()} items…`);
+  if (!ls.length && !vs.length && !ss.length && failed.length) throw new Error(`Signed in, but the server did not send the ${failed.join(', ')}.`);
   const names = (cats: XtCategory[]) => new Map(cats.map(c => [String(c.category_id), c.category_name]));
   const L = names(lc), V = names(vc), SC = names(sc);
   // Keep the provider's category order, which is usually deliberate.
