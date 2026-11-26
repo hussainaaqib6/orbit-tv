@@ -7,20 +7,22 @@ import type { Source } from '../sources/types';
 import { SourceForm } from './SourceForm';
 import { PairingPanel, pairingAvailable } from './PairingPanel';
 import { confirmDialog, toast } from '../ui/overlays';
-import { Icon } from '../ui/icons';
+import { Icon, type IconName } from '../ui/icons';
 import { PLATFORM } from '../core/platform';
 import { focusEl } from '../nav/focus';
 import { defaults } from '../core/platform';
 import { APP_NAME } from '../core/brand';
 import { groupKey, isAdultGroup, unlocked, type Kind } from '../sources/restrictions';
 import { requirePin, setNewPin } from '../ui/pin';
-import { RemoteButtons, MenuSettings, Themes, HomeSettings } from './SettingsMore';
+import { RemoteButtons, Themes } from './SettingsMore';
+import { push } from '../nav/router';
 
-const SECTIONS = [
-  { id: 'playlists', label: 'Playlists' }, { id: 'appearance', label: 'Appearance' }, { id: 'player', label: 'Player' },
-  { id: 'subtitles', label: 'Subtitles' }, { id: 'guide', label: 'TV guide' }, { id: 'sports', label: 'Sports' },
-  { id: 'home', label: 'Home screen' }, { id: 'categories', label: 'Categories' }, { id: 'parental', label: 'Parental controls' }, { id: 'remote', label: 'Remote buttons' },
-  { id: 'menu', label: 'Side menu' }, { id: 'themes', label: 'Colours & theme' }, { id: 'general', label: 'General' }, { id: 'services', label: 'Artwork and info' }, { id: 'about', label: 'About' },
+const SECTIONS: { id: string; label: string; icon: IconName }[] = [
+  { id: 'playlists', label: 'Playlists', icon: 'list' }, { id: 'player', label: 'Player', icon: 'play' }, { id: 'appearance', label: 'Appearance', icon: 'sliders' },
+  { id: 'subtitles', label: 'Subtitles', icon: 'cc' }, { id: 'guide', label: 'TV guide', icon: 'guide' }, { id: 'sports', label: 'Sports', icon: 'sports' },
+  { id: 'categories', label: 'Categories', icon: 'hidden' }, { id: 'parental', label: 'Parental', icon: 'lock' }, { id: 'remote', label: 'Remote buttons', icon: 'remote' },
+  { id: 'themes', label: 'Colours & theme', icon: 'palette' }, { id: 'general', label: 'General', icon: 'settings' }, { id: 'services', label: 'Artwork and info', icon: 'image' },
+  { id: 'about', label: 'About', icon: 'info' },
 ];
 
 /**
@@ -34,7 +36,7 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'previewFollows', label: 'Preview follows the highlighted channel', section: 'appearance', words: 'mini player auto preview scroll' },
   { id: 'previewMuted', label: 'Preview without sound', section: 'appearance', words: 'mini player mute audio silent' },
   { id: 'showFinishTime', label: 'Show finish time', section: 'appearance', words: 'ends end time clock player film episode' },
-  { id: 'lastChannelButton', label: 'Last channel in the side menu', section: 'appearance', words: 'previous channel recall back swap history' },
+  { id: 'lastChannelButton', label: 'Last channel on the Home screen', section: 'appearance', words: 'previous channel recall back swap history' },
   { id: 'numbering', label: 'Channel numbering', section: 'appearance', words: 'numbers favourites fixed sequential lcn' },
   { id: 'showNumbers', label: 'Show channel numbers', section: 'appearance', words: 'numbers lcn' },
   { id: 'engine', label: 'Player engine', section: 'player', words: 'exoplayer media3 decoder hardware web player' },
@@ -56,14 +58,12 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'extraEpg', label: 'Extra guide links', section: 'guide', words: 'epg xmltv url source' },
   { id: 'matchCards', label: 'Match cards', section: 'sports', words: 'sports fixtures classic big cards football' },
   { id: 'sportsMyChannels', label: 'My channels only', section: 'sports', words: 'sports fixtures streams available hide' },
-  { id: 'homeRows', label: 'Home screen rows', section: 'home', words: 'home rows shelves continue watching recently added watched unwatched sports row arrange' },
   { id: 'rateThis', label: 'Rate This', section: 'player', words: 'rating rate stars prompt end' },
   { id: 'categories', label: 'Hide categories', section: 'categories', words: 'hide hidden categories groups folders filter show' },
   { id: 'pin', label: 'Parental PIN', section: 'parental', words: 'parental controls pin lock kids children adult restrictions password' },
   { id: 'lockAdult', label: 'Lock adult categories', section: 'parental', words: 'adult xxx 18 parental lock' },
   { id: 'lockSettings', label: 'Lock settings with the PIN', section: 'parental', words: 'parental settings lock pin' },
   { id: 'remote', label: 'Remote buttons', section: 'remote', words: 'remote buttons keys shortcuts red green yellow blue colour mapping' },
-  { id: 'menu', label: 'Side menu items', section: 'menu', words: 'menu order hide items navigation rail' },
   { id: 'themes', label: 'Colours & theme', section: 'themes', words: 'theme colours colors accent background font size appearance skin export import share' },
   { id: 'askBeforeExit', label: 'Ask before leaving the app', section: 'general', words: 'exit quit close confirm' },
   { id: 'tmdbKey', label: 'TMDB key (artwork and info)', section: 'services', words: 'tmdb artwork posters backdrops plot cast metadata' },
@@ -266,7 +266,7 @@ function Appearance() {
       </div>
       <h3>Last channel</h3>
       <div class="stack" style={{ marginBottom: '1.4rem' }}>
-        <Toggle id="lastChannelButton" label="Last channel in the side menu" sub="The remote's Last or Yellow button works from any screen as well" on={s.lastChannelButton} onChange={v => set({ lastChannelButton: v })} />
+        <Toggle id="lastChannelButton" label="Last channel on the Home screen" sub="The remote's Last or Yellow button works from any screen as well" on={s.lastChannelButton} onChange={v => set({ lastChannelButton: v })} />
       </div>
       <h3>Channel numbers</h3>
       <Choice id="numbering" label="Numbering" value={s.numbering} onChange={v => set({ numbering: v })}
@@ -388,7 +388,7 @@ function About() {
       <h3>Remote control</h3>
       <div class="stack muted" style={{ lineHeight: 1.7 }}>
         <div><b style={{ color: 'var(--ink)' }}>OK</b> opens or plays. <b style={{ color: 'var(--ink)' }}>Hold OK</b> or <b style={{ color: 'var(--ink)' }}>Menu</b> shows options for the highlighted item.</div>
-        <div><b style={{ color: 'var(--ink)' }}>Back</b> goes up one level, then to the side menu.</div>
+        <div><b style={{ color: 'var(--ink)' }}>Back</b> goes up one level, then to the Home screen.</div>
         <div>In the player: <b style={{ color: 'var(--ink)' }}>Up/Down</b> change channel, <b style={{ color: 'var(--ink)' }}>Left</b> opens the channel list, <b style={{ color: 'var(--ink)' }}>Left/Right</b> skip in films, <b style={{ color: 'var(--ink)' }}>Rewind/Fast-forward</b> jump 30 seconds, number keys pick a channel, <b style={{ color: 'var(--ink)' }}>Yellow</b> returns to the last channel.</div>
       </div>
     </>
@@ -396,23 +396,20 @@ function About() {
 }
 
 export function Settings({ section, highlight }: { section?: string; highlight?: string }) {
-  const [cur, setCur] = useState(section ?? 'playlists');
   const [q, setQ] = useState('');
-  const [flash, setFlash] = useState(highlight ?? '');
   const body: Record<string, () => ComponentChildren> = {
     playlists: Playlists, appearance: Appearance, player: Player, subtitles: Subtitles, guide: GuideSettings, sports: SportsSettings,
-    home: HomeSettings, categories: Categories, parental: Parental, remote: RemoteButtons, menu: MenuSettings, themes: Themes,
+    categories: Categories, parental: Parental, remote: RemoteButtons, themes: Themes,
     general: General, services: Services, about: About,
   };
-  const Body = body[cur] ?? Playlists;
   const results = searchSettings(q);
 
-  // A search result: open its section, then scroll to the setting and light it up.
+  // Opened from a search result: scroll to the setting and light it up.
   useEffect(() => {
-    if (!flash) return;
+    if (!section) return;
     const t = requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(`.settings-body [data-setting="${flash}"]`) ?? document.querySelector<HTMLElement>('.settings-body h2');
-      if (!el) return;
+      const el = highlight ? document.querySelector<HTMLElement>(`.settings-body [data-setting="${highlight}"]`) : null;
+      if (!el) { focusEl(document.querySelector<HTMLElement>('.settings-body button, .settings-body input')); return; }
       el.scrollIntoView({ block: 'center' });
       el.classList.add('flash');
       const target = el.matches('button, input') ? el : el.querySelector<HTMLElement>('button, input, textarea') ?? el.nextElementSibling?.querySelector<HTMLElement>('input, button');
@@ -420,9 +417,8 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
       setTimeout(() => el.classList.remove('flash'), 1800);
     }));
     return () => cancelAnimationFrame(t);
-  }, [flash, cur]);
+  }, [section, highlight]);
 
-  const go = (sec: string, id: string) => { setQ(''); setCur(sec); setFlash(id); };
   const s0 = settings.value;
   if (s0.pinHash && s0.lockSettings && !unlocked.value) {
     return (
@@ -433,29 +429,50 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
       </div></div>
     );
   }
+
+  // One section, full width. Back returns to the grid.
+  const Body = section ? body[section] : undefined;
+  if (Body) {
+    const meta = SECTIONS.find(x => x.id === section);
+    return (
+      <div class="screen opaque">
+        <div class="settings-page">
+          <div class="settings-crumb"><Icon name={meta?.icon ?? 'settings'} /><span>Settings</span><span class="faint">/</span><b>{meta?.label}</b></div>
+          <div class="settings-body"><Body /></div>
+        </div>
+      </div>
+    );
+  }
+
+  // The grid of sections, with search above it.
   return (
     <div class="screen opaque">
-      <div class="settings">
-        <aside class="cats" data-nav-group="cats" data-nav-scope="left right">
-          <div class="cats-head"><h1>Settings</h1></div>
+      <div class="settings-home">
+        <div class="settings-top">
+          <h1>Settings</h1>
           <div class="settings-search">
             <Icon name="search" />
             <input class="input" value={q} placeholder="Search settings" aria-label="Search settings" spellcheck={false} autocomplete="off"
               onInput={e => setQ((e.target as HTMLInputElement).value)} />
           </div>
-          <div class="cats-list">
-            {q ? (
-              results.length ? results.map(r => (
-                <button key={r.id} class="cat result" onClick={() => go(r.section, r.id)}>
-                  <span><span class="clip" style={{ display: 'block' }}>{r.label}</span><span class="n" style={{ marginLeft: 0 }}>{SECTIONS.find(x => x.id === r.section)?.label}</span></span>
-                </button>
-              )) : <p class="hint" style={{ padding: '0.5rem 0.9rem' }}>No setting matches "{q}".</p>
-            ) : SECTIONS.map(s => (
-              <button key={s.id} class={`cat${cur === s.id ? ' on' : ''}`} onFocus={() => { setCur(s.id); setFlash(''); }} onClick={() => { setCur(s.id); requestAnimationFrame(() => focusEl(document.querySelector<HTMLElement>('.settings-body button, .settings-body input'))); }}>{s.label}</button>
+        </div>
+        {q ? (
+          <div class="stack settings-results" data-nav-group>
+            {results.length ? results.map(r => (
+              <button key={r.id} class="cat result" onClick={() => { setQ(''); push({ name: 'settings', section: r.section, highlight: r.id }); }}>
+                <span><span class="clip" style={{ display: 'block' }}>{r.label}</span><span class="n" style={{ marginLeft: 0 }}>{SECTIONS.find(x => x.id === r.section)?.label}</span></span>
+              </button>
+            )) : <p class="hint">No setting matches "{q}".</p>}
+          </div>
+        ) : (
+          <div class="settings-grid" data-nav-group>
+            {SECTIONS.map((x, i) => (
+              <button key={x.id} class="set-tile" data-autofocus={i === 0 || undefined} onClick={() => push({ name: 'settings', section: x.id })}>
+                <Icon name={x.icon} /><span>{x.label}</span>
+              </button>
             ))}
           </div>
-        </aside>
-        <div class="settings-body" key={cur}><Body /></div>
+        )}
       </div>
     </div>
   );

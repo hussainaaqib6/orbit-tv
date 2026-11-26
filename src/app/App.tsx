@@ -1,12 +1,12 @@
-// The app shell: side menu, the current screen, the player, and the overlays on top.
+// The app shell: the current screen, the player, and the overlays on top. Home is the hub: every
+// screen is opened from its tiles, and Back always leads back to it.
 import { useEffect } from 'preact/hooks';
-import { route, pop } from '../nav/router';
+import { route, pop, goRoot } from '../nav/router';
 import { setBaseBack, setShortcutHandler, handleNativeKey, installKeyHandling } from '../nav/focus';
 import { lastChannel } from '../player/controller';
-import { goRoot } from '../nav/router';
 import { runShortcut, DEFAULT_MAP } from './shortcuts';
 import { applyTheme } from '../core/theme';
-import { Rail, focusRail, focusScreen } from './Rail';
+import { focusScreen } from './Rail';
 import { Sheets, Dialog, Toasts, confirmDialog } from '../ui/overlays';
 import { PinPad } from '../ui/pin';
 import { PlayerOverlay } from '../player/PlayerOverlay';
@@ -45,7 +45,7 @@ function Screen() {
     case 'series': return <Vod key="series" kind="series" />;
     case 'search': return <Search />;
     case 'favourites': return <Favourites />;
-    case 'settings': return <Settings section={r.section} />;
+    case 'settings': return <Settings key={r.section ?? ''} section={r.section} highlight={r.highlight} />;
     case 'movie': return <MovieDetail key={r.key} itemKey={r.key} />;
     case 'show': return <ShowDetail key={r.key} itemKey={r.key} />;
   }
@@ -54,11 +54,11 @@ function Screen() {
 export function App() {
   useEffect(() => {
     installKeyHandling();
-    // Back with nothing open: leave a detail screen, then go to the menu, then offer to leave the app.
+    // Back with nothing open: leave a detail screen, then go Home, then offer to leave the app.
     setBaseBack(() => {
       if (pop()) return;
-      if (!document.activeElement?.closest('.rail')) focusRail();
-      else exitApp();
+      if (route.value.name !== 'home') { goRoot({ name: 'home' }); return; }
+      exitApp();
     });
     // Remote shortcuts that work from any screen (Settings → Remote buttons).
     setShortcutHandler(a => {
@@ -86,7 +86,6 @@ export function App() {
   return (
     <>
       <div class="shell" inert={mode.value === 'full' || (booting.value && !noSources) || undefined}>
-        {!noSources && <Rail />}
         <main class="screen-area">
           {noSources ? <Welcome /> : <Screen />}
         </main>
