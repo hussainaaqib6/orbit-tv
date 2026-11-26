@@ -86,6 +86,8 @@ body.video-preview .screen.opaque { background: var(--bg); }
 
 /* ------------------------------ side rail ------------------------------ */
 .rail { width: var(--rail-w); flex: none; position: relative; z-index: 6; }
+/* With the preview playing the page is see-through; paint the gap around the floating menu. */
+body.video-preview .rail { background: #282c58; }
 .rail-panel {
   position: absolute; top: 1.1rem; bottom: 1.1rem; left: 1.1rem; width: calc(var(--rail-w) - 1.6rem);
   background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-l);
