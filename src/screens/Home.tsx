@@ -70,7 +70,6 @@ export function Home() {
         <div class="gx-clock"><b class="tnum">{clock(now)}</b><span>{date}</span></div>
         <Wordmark class="gx-logo" />
         <div class="gx-tools" data-nav-group>
-          <IconBtn icon="search" label="Search" onClick={go({ name: 'search' })} />
           <IconBtn icon="refresh" label="Update contents" onClick={() => reload(true)} />
         </div>
       </header>

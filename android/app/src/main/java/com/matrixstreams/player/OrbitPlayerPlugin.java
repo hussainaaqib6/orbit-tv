@@ -1015,8 +1015,11 @@ public class OrbitPlayerPlugin extends Plugin {
         subtitles.setLayoutParams(slp);
         subtitles.setVisibility(rect != null ? View.GONE : View.VISIBLE);
 
-        // In the preview box the picture always fits; zoom and crop only apply full screen.
-        String mode = rect != null ? "fit" : aspect;
+        // In the preview box the picture always fills the whole box (cropping a little if the shapes
+        // differ), so no gap shows round it; the box is black underneath in case the picture is still
+        // starting. The chosen picture mode and zoom only apply full screen.
+        frame.setBackgroundColor(rect != null ? Color.BLACK : Color.TRANSPARENT);
+        String mode = rect != null ? "fill" : aspect;
         float z = rect != null ? 1f : zoom;
         float videoAspect = videoW > 0 && videoH > 0 ? videoW * pixelRatio / videoH : 16f / 9f;
         float boxAspect = (float) fw / fh;

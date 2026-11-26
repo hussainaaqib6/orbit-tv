@@ -21,11 +21,11 @@ import { Icon } from '../ui/icons';
 import { openItemMenu } from '../ui/cards';
 import { onAction } from '../nav/keys';
 import { focusEl } from '../nav/focus';
-import { goRoot } from '../nav/router';
 import { cleanChannelName } from '../core/names';
 import { clock } from '../core/format';
 import * as P from '../player/controller';
 import { toast } from '../ui/overlays';
+import { useSectionSearch, SearchBox } from '../ui/sectionSearch';
 
 const FAV = '\u0001fav', RECENT = '\u0001recent', ALL = '\u0001all';
 type Stage = 'browse' | 'channels';
@@ -50,14 +50,16 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const [stage, setStage] = useState<Stage>('browse');
   const [group, setGroup] = useState<string>(() => initialGroup ?? playing?.group ?? (favs.length ? FAV : groups[0]?.name ?? ALL));
   const chSort = (settings.value.sortByGroup[`live:${group}`] ?? 'default') as 'default' | 'az' | 'za' | 'watched';
+  // Search covers every channel in Live TV, not just the category picked.
+  const search = useSectionSearch(all, c => cleanChannelName(c.name).name);
   const list = useMemo(() => {
-    const base = group === FAV ? favs : group === RECENT ? recent : group === ALL ? all : byGroup.get(group) ?? [];
+    const base = search.results ?? (group === FAV ? favs : group === RECENT ? recent : group === ALL ? all : byGroup.get(group) ?? []);
     if (chSort === 'default') return base;
     const name = (c: Channel) => cleanChannelName(c.name).name;
     if (chSort === 'watched') { const r = recentChannels.value; return [...base].sort((a, b) => (r.indexOf(a.key) + 1 || 1e9) - (r.indexOf(b.key) + 1 || 1e9)); }
     const out = [...base].sort((a, b) => name(a).localeCompare(name(b), undefined, { numeric: true, sensitivity: 'base' }));
     return chSort === 'za' ? out.reverse() : out;
-  }, [group, all, favs, recent, byGroup, chSort]);
+  }, [group, all, favs, recent, byGroup, chSort, search.results]);
   const CH_SORTS = [{ id: 'default', label: 'Playlist order' }, { id: 'az', label: 'A–Z' }, { id: 'za', label: 'Z–A' }, { id: 'watched', label: 'Recently watched' }];
   const cycleChSort = () => {
     const next = CH_SORTS[(CH_SORTS.findIndex(x => x.id === chSort) + 1) % CH_SORTS.length].id;
@@ -213,7 +215,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     return true;
   }), [all, stage]);
 
-  const groupLabel = group === FAV ? 'Favourites' : group === RECENT ? 'Recently watched' : group === ALL ? 'All channels' : group;
+  const groupLabel = search.results ? `Results for “${search.text.trim()}”` : group === FAV ? 'Favourites' : group === RECENT ? 'Recently watched' : group === ALL ? 'All channels' : group;
   const showNumbers = settings.value.showNumbers;
 
   if (stage === 'browse') {
@@ -222,9 +224,11 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
         <Browse
           group={group} groupLabel={groupLabel} list={list} favs={favs.length} recent={recent.length} all={all.length} groups={groups}
           sortLabel={CH_SORTS.find(x => x.id === chSort)!.label} onSort={cycleChSort}
+          searchText={search.text} onSearch={search.setText} searching={!!search.results}
           onGroup={(key, now) => {
             clearTimeout(catTimer.current);
-            if (now) setGroup(key);
+            if (now) { search.clear(); setGroup(key); return; }
+            if (search.results) return; // browsing categories doesn't throw away the search results
             else catTimer.current = window.setTimeout(() => setGroup(key), 250);
           }}
           onPick={openChannel} />
@@ -280,9 +284,10 @@ function EmptyList({ onBack }: { onBack: () => void }) {
 interface BrowseProps {
   group: string; groupLabel: string; list: Channel[]; favs: number; recent: number; all: number; groups: { name: string; count: number }[];
   sortLabel: string; onSort: () => void; onGroup: (key: string, now: boolean) => void; onPick: (c: Channel) => void;
+  searchText: string; onSearch: (v: string) => void; searching: boolean;
 }
 
-function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel, onSort, onGroup, onPick }: BrowseProps) {
+function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel, onSort, onGroup, onPick, searchText, onSearch, searching }: BrowseProps) {
   const cats = useRef<HTMLElement>(null);
   const grid = useRef<HTMLElement>(null);
   const [now, setNow] = useState(Date.now());
@@ -293,19 +298,20 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
   useEffect(() => onAction(cats.current!, a => {
     if (a !== 'right') return;
     const k = (document.activeElement as HTMLElement | null)?.dataset.cat;
-    if (k) onGroup(k, true);
+    if (k && !searching) onGroup(k, true);
     intoGrid();
     return true;
-  }), [onGroup]);
-  // Back in the tiles: up to the categories.
+  }), [onGroup, searching]);
+  // Back in the tiles: up to the categories (clearing a search first, so Back always leads out).
   useEffect(() => onAction(grid.current!, a => {
     if (a !== 'back') return;
-    focusEl(cats.current?.querySelector<HTMLElement>('.cat.on'));
+    if (searching) onSearch('');
+    requestAnimationFrame(() => focusEl(cats.current?.querySelector<HTMLElement>('[data-autofocus]') ?? cats.current?.querySelector<HTMLElement>('.cat')));
     return true;
-  }), []);
+  }), [searching, onSearch]);
 
   const cat = (key: string, label: string, n: number) => (
-    <button key={key} data-cat={key} class={`cat${group === key ? ' on' : ''}`} onFocus={() => onGroup(key, false)} onClick={() => { onGroup(key, true); intoGrid(); }}>
+    <button key={key} data-cat={key} data-autofocus={group === key || undefined} class={`cat${group === key && !searching ? ' on' : ''}`} onFocus={() => onGroup(key, false)} onClick={() => { onGroup(key, true); intoGrid(); }}>
       <span class="clip">{label}</span><span class="n">{n}</span>
     </button>
   );
@@ -315,9 +321,9 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
         <div class="gx-clock"><b class="tnum">{clock(now)}</b><span>{new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
         <Wordmark class="gx-logo" player={false} />
         <div class="lb-bar-right">
-          <div class="lb-cat"><b class="clip">{groupLabel}</b><span>{list.length.toLocaleString()} channels · Categories</span></div>
+          <div class="lb-cat"><b class="clip">{groupLabel}</b><span>{list.length.toLocaleString()} channels{searching ? '' : ' · Categories'}</span></div>
+          <SearchBox text={searchText} onText={onSearch} placeholder="Search channels" />
           <button class="gx-iconbtn" onClick={onSort} aria-label={`Order: ${sortLabel}`} title={sortLabel}><Icon name="sort" /></button>
-          <button class="gx-iconbtn" onClick={() => goRoot({ name: 'search' })} aria-label="Search"><Icon name="search" /></button>
         </div>
       </header>
       <div class="lb-body">
@@ -332,7 +338,7 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
         <section class="lb-main" ref={grid}>
           {list.length
             ? <VirtualGrid items={list} minRem={8.6} ratio={0.78} extraRem={2.7} keyOf={c => c.key} render={c => <ChannelTile c={c} onPick={onPick} />} />
-            : <div class="empty"><p>No channels in this category.</p></div>}
+            : <div class="empty"><p>{searching ? 'No channels match your search.' : 'No channels in this category.'}</p></div>}
         </section>
       </div>
     </div>
