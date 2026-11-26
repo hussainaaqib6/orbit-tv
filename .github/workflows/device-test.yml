@@ -40,6 +40,8 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
           .github/scripts/make-fixtures.sh "$RUNNER_TEMP/fixtures"
           (cd "$RUNNER_TEMP/fixtures" && nohup python3 -m http.server 8099 > /dev/null 2>&1 &)
+          mkdir -p "$RUNNER_TEMP/xtream" && (nohup python3 .github/scripts/xtream-mock.py "$RUNNER_TEMP/xtream" 8098 > "$RUNNER_TEMP/xtream.log" 2>&1 &)
+          for i in $(seq 1 90); do grep -q MB "$RUNNER_TEMP/xtream.log" && break; sleep 2; done; cat "$RUNNER_TEMP/xtream.log"
       - name: Run in the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -47,9 +49,10 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_c
+          ram-size: 1536M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: .github/scripts/device-test.sh
+          script: ${{ github.ref_name == 'repro/crash' && '.github/scripts/device-test-repro.sh' || '.github/scripts/device-test.sh' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
