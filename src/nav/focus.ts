@@ -165,12 +165,13 @@ function defaultAction(action: Action) {
   }
 }
 
+/** Focus tracing for the Android device test (built with VITE_TRACE_FOCUS=1); off in normal builds. */
+const TRACE = import.meta.env.VITE_TRACE_FOCUS === '1';
 const describe = (el: Element | null) => !el || el === document.body ? 'body' : `${el.tagName.toLowerCase()}.${String(el.className).split(' ').join('.')} "${(el.textContent || '').trim().slice(0, 24)}"`;
 
 export function dispatch(action: Action, repeat = false) {
   if (!emitAction(action, repeat)) defaultAction(action);
-  // Only debug builds send console output to the Android log; the device test reads it.
-  if (!repeat) requestAnimationFrame(() => console.debug(`[orbit] ${action} -> ${describe(document.activeElement)}`));
+  if (TRACE && !repeat) requestAnimationFrame(() => console.debug(`[orbit] ${action} -> ${describe(document.activeElement)}`));
 }
 
 /* ------------------------------ input wiring ------------------------------ */
@@ -220,8 +221,7 @@ export function installKeyHandling() {
   installed = true;
   document.addEventListener('keydown', onKeyDown, true);
   document.addEventListener('keyup', onKeyUp, true);
-  // Debug builds only (see dispatch): every focus change, to trace where focus goes.
-  document.addEventListener('focusin', e => console.debug(`[orbit] focus ${describe(e.target as Element)}`));
+  if (TRACE) document.addEventListener('focusin', e => console.debug(`[orbit] focus ${describe(e.target as Element)}`));
   // Right-click on desktop = hold OK.
   document.addEventListener('contextmenu', e => {
     if (!(e.target instanceof Element) || inTextField()) return;
