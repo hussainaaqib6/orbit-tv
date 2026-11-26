@@ -8,7 +8,7 @@ import { Icon } from './icons';
 import { settings, updateSettings } from '../sources/library';
 import { hashPin, unlocked } from '../sources/restrictions';
 
-const pad = signal<{ title: string; sub: string; resolve: (pin: string | null) => void } | null>(null);
+export const pad = signal<{ title: string; sub: string; resolve: (pin: string | null) => void } | null>(null);
 
 /** Asks for 4 digits. Resolves with them, or null if cancelled. */
 export function askPin(title: string, sub = ''): Promise<string | null> {

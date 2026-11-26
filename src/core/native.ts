@@ -17,6 +17,8 @@ export interface OrbitPlayerPlugin {
   stop(): Promise<void>;
   seekTo(o: { position: number }): Promise<void>;
   setRect(o: { rect: NativeRect | null }): Promise<void>;
+  /** Draw the preview above the app (Android). */
+  setOnTop(o: { onTop: boolean }): Promise<void>;
   setAspect(o: { mode: string; zoom: number }): Promise<void>;
   setSpeed(o: { speed: number }): Promise<void>;
   setMuted(o: { muted: boolean }): Promise<void>;
