@@ -95,7 +95,10 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   useEffect(() => { prefetchChannels(list.slice(Math.max(0, startIndex - 10), startIndex + 80)); }, [list]);
 
   // Where the list opens: on the playing channel. Worked out once per list so it doesn't jump about.
-  const startIndex = useMemo(() => Math.max(0, list.findIndex(c => c.key === playingKey)), [list]);
+  const startIndex = useMemo(() => {
+    const i = list.findIndex(c => c.key === playingKey);
+    return i >= 0 ? i : Math.max(0, list.findIndex(c => !isDivider(c.name)));
+  }, [list]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();
 
   // Coming back from full screen: focus goes to the channel that is playing, in this list.
@@ -111,6 +114,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
+    if (isDivider(c.name)) return; // a heading, not a channel
     clearTimeout(hiTimer.current);
     clearTimeout(followTimer.current);
     setHi(c);
@@ -131,7 +135,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     // Optional: the preview follows the highlight once scrolling stops, so fast scrolling never
     // opens a stream for every channel passed.
     clearTimeout(followTimer.current);
-    if (settings.value.miniPlayer && settings.value.previewFollows) {
+    if (settings.value.miniPlayer && settings.value.previewFollows && !isDivider(c.name)) {
       followTimer.current = window.setTimeout(() => {
         if (P.mode.value === 'full' || P.current.value?.channel?.key === c.key) return;
         P.playChannel(c, { preview: true, channels: listRef.current });
