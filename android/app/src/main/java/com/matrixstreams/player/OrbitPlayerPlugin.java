@@ -1,6 +1,11 @@
 package com.matrixstreams.player;
 
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -508,60 +513,99 @@ public class OrbitPlayerPlugin extends Plugin {
         pairToken = null;
     }
 
-    private static String lanAddress() throws Exception {
+    /**
+     * The TV's address on the home network, for the QR code. Asks Android for the Wi-Fi or Ethernet
+     * connection itself, so a VPN (tun), Wi-Fi Direct / screen mirroring (p2p, 192.168.49.x) or mobile
+     * data address is never chosen: a phone on the home Wi-Fi can't reach those.
+     */
+    private String lanAddress() throws Exception {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                for (Network n : cm.getAllNetworks()) {
+                    NetworkCapabilities caps = cm.getNetworkCapabilities(n);
+                    if (caps == null || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue;
+                    if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) continue;
+                    LinkProperties lp = cm.getLinkProperties(n);
+                    if (lp == null) continue;
+                    for (LinkAddress la : lp.getLinkAddresses()) {
+                        InetAddress a = la.getAddress();
+                        if (a instanceof Inet4Address && !a.isLoopbackAddress() && !a.isLinkLocalAddress()) return a.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall back to the interface list below.
+        }
+        // Fallback: a private address on a Wi-Fi or Ethernet interface, skipping VPN, mirroring and mobile ones.
         String fallback = null;
         for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            if (!nif.isUp() || nif.isLoopback()) continue;
+            if (!nif.isUp() || nif.isLoopback() || nif.isVirtual() || nif.isPointToPoint()) continue;
+            String name = nif.getName().toLowerCase(Locale.ROOT);
+            if (name.startsWith("tun") || name.startsWith("ppp") || name.startsWith("p2p") || name.startsWith("rmnet") || name.startsWith("dummy")) continue;
+            boolean preferred = name.startsWith("wlan") || name.startsWith("eth");
             for (InetAddress a : Collections.list(nif.getInetAddresses())) {
-                if (!(a instanceof Inet4Address) || a.isLoopbackAddress()) continue;
-                if (a.isSiteLocalAddress()) return a.getHostAddress();
+                if (!(a instanceof Inet4Address) || a.isLoopbackAddress() || !a.isSiteLocalAddress()) continue;
+                if (preferred) return a.getHostAddress();
                 if (fallback == null) fallback = a.getHostAddress();
             }
         }
         return fallback;
     }
-
+    /** Each phone connection is handled on its own thread, so idle ones can't hold up the real request. */
+    private final ExecutorService pairPool = Executors.newFixedThreadPool(6);
     private void serve(ServerSocket server) {
         int handled = 0;
         while (!server.isClosed() && handled++ < 500) {
-            try (Socket sock = server.accept()) {
-                sock.setSoTimeout(8000);
-                BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream(), StandardCharsets.UTF_8));
-                String line = in.readLine();
-                if (line == null) continue;
-                String[] req = line.split(" ");
-                int length = 0;
-                for (String h; (h = in.readLine()) != null && !h.isEmpty(); ) {
-                    if (h.toLowerCase(Locale.ROOT).startsWith("content-length:")) length = Integer.parseInt(h.substring(15).trim());
-                }
-                String path = req.length > 1 ? req[1].split("\\?")[0] : "";
-                String token = pairToken;
-                boolean ok = token != null && path.equals("/" + token);
-                OutputStream out = sock.getOutputStream();
-                if (!ok) { respond(out, 404, "text/plain", "Not found"); continue; }
-                if ("POST".equals(req[0]) && length > 0 && length < 16384) {
-                    char[] body = new char[length];
-                    int read = 0;
-                    while (read < length) { int n = in.read(body, read, length - read); if (n < 0) break; read += n; }
-                    JSObject fields = new JSObject();
-                    for (String pair : new String(body, 0, read).split("&")) {
-                        int eq = pair.indexOf('=');
-                        if (eq <= 0) continue;
-                        String k = URLDecoder.decode(pair.substring(0, eq), "UTF-8");
-                        String v = URLDecoder.decode(pair.substring(eq + 1), "UTF-8");
-                        if (k.length() <= 20 && v.length() <= 4000) fields.put(k, v);
-                    }
-                    notifyListeners("pairing", fields);
-                    respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "sent"));
-                } else {
-                    respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "form"));
-                }
-            } catch (Exception ignored) {
-                // A dropped or slow connection: wait for the next one.
+            try {
+                Socket sock = server.accept();
+                pairPool.execute(() -> handle(sock));
+            } catch (Exception e) {
+                if (server.isClosed()) return;
             }
         }
     }
-
+    /**
+     * One phone connection. Phone browsers open extra connections in advance and may never send on
+     * them; those are dropped after a few seconds without delaying anyone else.
+     */
+    private void handle(Socket sock) {
+        try (Socket s = sock) {
+            s.setSoTimeout(5000);
+            BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
+            String line = in.readLine();
+            if (line == null) return;
+            String[] req = line.split(" ");
+            int length = 0;
+            for (String h; (h = in.readLine()) != null && !h.isEmpty(); ) {
+                if (h.toLowerCase(Locale.ROOT).startsWith("content-length:")) length = Integer.parseInt(h.substring(15).trim());
+            }
+            String path = req.length > 1 ? req[1].split("\\?")[0] : "";
+            String token = pairToken;
+            boolean ok = token != null && path.equals("/" + token);
+            OutputStream out = s.getOutputStream();
+            if (!ok) { respond(out, 404, "text/plain", "Not found"); return; }
+            if ("POST".equals(req[0]) && length > 0 && length < 16384) {
+                char[] body = new char[length];
+                int read = 0;
+                while (read < length) { int n = in.read(body, read, length - read); if (n < 0) break; read += n; }
+                JSObject fields = new JSObject();
+                for (String pair : new String(body, 0, read).split("&")) {
+                    int eq = pair.indexOf('=');
+                    if (eq <= 0) continue;
+                    String k = URLDecoder.decode(pair.substring(0, eq), "UTF-8");
+                    String v = URLDecoder.decode(pair.substring(eq + 1), "UTF-8");
+                    if (k.length() <= 20 && v.length() <= 4000) fields.put(k, v);
+                }
+                notifyListeners("pairing", fields);
+                respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "sent"));
+            } else {
+                respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "form"));
+            }
+        } catch (Exception ignored) {
+            // A dropped, idle or slow connection: nothing to do.
+        }
+    }
     private static void respond(OutputStream out, int code, String type, String body) throws Exception {
         byte[] b = body.getBytes(StandardCharsets.UTF_8);
         String head = "HTTP/1.1 " + code + (code == 200 ? " OK" : " Not Found") + "\r\nContent-Type: " + type
