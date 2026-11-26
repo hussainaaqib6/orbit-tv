@@ -11,10 +11,15 @@ adb logcat -c
 adb shell am start -n tv.orbit.player/.MainActivity
 sleep 20
 shot 01-welcome
-# Welcome form: M3U link, type the address, submit.
-key DPAD_RIGHT DPAD_CENTER DPAD_DOWN
-adb shell input text 'http://10.0.2.2:8099/playlist.m3u'
-key ENTER
+# Add the playlist the way a phone would after scanning the QR code: post the form to the TV.
+pair=$(adb logcat -d | grep -o 'pairing http://[^ "]*' | tail -1 | cut -d' ' -f2)
+echo "pairing address: $pair"
+port=$(echo "$pair" | sed -E 's#http://[^:]+:([0-9]+)/.*#\1#'); token=$(echo "$pair" | sed -E 's#.*/##')
+adb forward tcp:9555 tcp:"$port"
+curl -s "http://127.0.0.1:9555/$token" | grep -c 'Send to TV' | sed 's/^/phone page has the form: /'
+curl -s -o /dev/null -w 'wrong token answers %{http_code}\n' "http://127.0.0.1:9555/wrong"
+curl -s --data-urlencode type=m3u --data-urlencode url=http://10.0.2.2:8099/playlist.m3u --data-urlencode name=Test "http://127.0.0.1:9555/$token" | grep -c 'Sent to your TV' | sed 's/^/phone page shows sent: /'
+shot 01b-received 3
 sleep 12
 shot 02-home
 # Menu: Back to the side menu, down to Live TV.

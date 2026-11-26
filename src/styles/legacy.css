@@ -20,3 +20,6 @@
 .no-gap .status-pill > * + * { margin-left: 0.6rem; }
 .no-gap .p-top > * + * { margin-left: 1.2rem; }
 .no-gap .p-buttons > * { margin: 0 0.6rem 0.4rem 0; }
+.no-gap .welcome-brand > * + * { margin-left: 0.6rem; }
+.no-gap .option > * + * { margin-left: 1rem; }
+.no-gap .pair-status > * + * { margin-left: 0.5rem; }
