@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -87,6 +88,11 @@ public class OrbitPlayerPlugin extends Plugin {
     private SurfaceView surface;
     /** Subtitles that come with the stream, drawn natively over the picture (handles image subtitles too). */
     private SubtitleView subtitles;
+    /**
+     * A black cover over the picture until the new video's first frame is drawn. Without it, the last
+     * frame of whatever played before stays on the surface while the next video loads.
+     */
+    private View shutter;
     private float subtitleScale = 1f;
     private boolean subtitleBackground = true;
     private boolean subtitleRaised = false;
@@ -141,6 +147,10 @@ public class OrbitPlayerPlugin extends Plugin {
 
             surface = new SurfaceView(getContext());
             frame.addView(surface, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+
+            shutter = new View(getContext());
+            shutter.setBackgroundColor(Color.BLACK);
+            container.addView(shutter, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
             subtitles = new SubtitleView(getContext());
             container.addView(subtitles, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -323,6 +333,11 @@ public class OrbitPlayerPlugin extends Plugin {
             }
 
             @Override
+            public void onRenderedFirstFrame() {
+                if (shutter != null) shutter.setVisibility(View.GONE);
+            }
+
+            @Override
             public void onVideoSizeChanged(@NonNull VideoSize size) {
                 videoW = size.width;
                 videoH = size.height;
@@ -372,6 +387,7 @@ public class OrbitPlayerPlugin extends Plugin {
             triedOtherContainer = false;
             reconnects = 0;
             rect = rectFrom(r);
+            shutter.setVisibility(View.VISIBLE);
             container.setVisibility(View.VISIBLE);
             layoutVideo();
             prepare(start);
@@ -567,6 +583,7 @@ public class OrbitPlayerPlugin extends Plugin {
             if (subtitles != null) subtitles.setCues(java.util.Collections.emptyList());
             url = null;
             videoW = videoH = 0;
+            if (shutter != null) shutter.setVisibility(View.VISIBLE);
             if (container != null) container.setVisibility(View.GONE);
             call.resolve();
         });
@@ -651,6 +668,13 @@ public class OrbitPlayerPlugin extends Plugin {
         flp.topMargin = fy;
         flp.gravity = Gravity.TOP | Gravity.START;
         frame.setLayoutParams(flp);
+        FrameLayout.LayoutParams shp = new FrameLayout.LayoutParams(fw, fh);
+        shp.leftMargin = fx;
+        shp.topMargin = fy;
+        shp.gravity = Gravity.TOP | Gravity.START;
+        shutter.setLayoutParams(shp);
+        Log.d("OrbitPlayer", "layout rect=" + (rect == null ? "full" : rect[0] + "," + rect[1] + " " + rect[2] + "x" + rect[3])
+                + " frame=" + fx + "," + fy + " " + fw + "x" + fh + " container=" + cw + "x" + ch + " webview@" + wvLoc[0] + "," + wvLoc[1]);
         // Subtitles cover the same area as the picture, and are hidden in the small preview box.
         FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(fw, fh);
         slp.leftMargin = fx;

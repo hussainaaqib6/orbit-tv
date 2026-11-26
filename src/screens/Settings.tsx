@@ -204,7 +204,7 @@ export function Settings({ section }: { section?: string }) {
   return (
     <div class="screen opaque">
       <div class="settings">
-        <aside class="cats" data-nav-group="cats">
+        <aside class="cats" data-nav-group="cats" data-nav-scope="left right">
           <div class="cats-head"><h1>Settings</h1></div>
           <div class="cats-list">
             {SECTIONS.map(s => (

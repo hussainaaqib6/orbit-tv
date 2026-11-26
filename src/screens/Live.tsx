@@ -86,10 +86,19 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     hiTimer.current = window.setTimeout(() => setHi(c), 180);
   }, []);
 
+  // Right from the categories: switch to the highlighted category now (if it hasn't yet), then go
+  // into its list, at the playing channel if it is there.
+  const pendingGroup = useRef<string | null>(null);
   useEffect(() => onAction(cats.current!, a => {
     if (a !== 'right') return;
-    const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
-    focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
+    clearTimeout(catTimer.current);
+    const g = pendingGroup.current;
+    pendingGroup.current = null;
+    if (g !== null) setGroup(g);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
+      focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
+    }));
     return true;
   }), []);
 
@@ -113,9 +122,14 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   const cat = (key: string, label: string, n: number) => (
     <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => { clearTimeout(catTimer.current); catTimer.current = window.setTimeout(() => setGroup(key), 400); }}
+      onFocus={() => {
+        clearTimeout(catTimer.current);
+        pendingGroup.current = key;
+        catTimer.current = window.setTimeout(() => { pendingGroup.current = null; setGroup(key); }, 400);
+      }}
       onClick={() => {
         clearTimeout(catTimer.current);
+        pendingGroup.current = null;
         setGroup(key);
         requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.chlist [data-index]')));
       }}>
@@ -130,7 +144,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   return (
     <div class="screen" ref={screen}>
       <div class="live">
-        <aside class="cats" data-nav-group="cats" ref={cats}>
+        <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={cats}>
           <div class="cats-head"><h1>Live TV</h1></div>
           <div class="cats-list">
             {favs.length > 0 && cat(FAV, 'Favourites', favs.length)}
