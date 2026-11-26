@@ -259,6 +259,9 @@ export function PlayerOverlay() {
 
   // A new channel or episode: show what it is for a few seconds.
   useEffect(() => { if (full && P.current.value) showControls(); }, [P.current.value?.key]);
+  // Native subtitles move up while the controls show, and follow the size/background settings.
+  useEffect(() => { P.subtitlesRaised.value = full && controls.value; P.applySubtitleStyle(); }, [full, controls.value, settings.value.subSize, settings.value.subBackground]);
+
   // An error takes focus so OK means "Try again".
   useEffect(() => {
     if (full && P.error.value) requestAnimationFrame(() => focusEl(document.querySelector<HTMLElement>('.p-error .btn')));

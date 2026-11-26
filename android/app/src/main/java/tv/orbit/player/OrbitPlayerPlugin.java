@@ -26,7 +26,6 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
-import androidx.media3.common.text.Cue;
 import androidx.media3.common.text.CueGroup;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DefaultHttpDataSource;
@@ -40,6 +39,8 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory;
+import androidx.media3.ui.CaptionStyleCompat;
+import androidx.media3.ui.SubtitleView;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -84,6 +85,11 @@ public class OrbitPlayerPlugin extends Plugin {
     private FrameLayout container;
     private FrameLayout frame;
     private SurfaceView surface;
+    /** Subtitles that come with the stream, drawn natively over the picture (handles image subtitles too). */
+    private SubtitleView subtitles;
+    private float subtitleScale = 1f;
+    private boolean subtitleBackground = true;
+    private boolean subtitleRaised = false;
 
     private String url;
     private Map<String, String> headers = new HashMap<>();
@@ -135,6 +141,10 @@ public class OrbitPlayerPlugin extends Plugin {
 
             surface = new SurfaceView(getContext());
             frame.addView(surface, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+
+            subtitles = new SubtitleView(getContext());
+            container.addView(subtitles, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            styleSubtitles();
             container.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> { if (r - l != or - ol || b - t != ob - ot) layoutVideo(); });
 
             // Phone back gestures arrive here rather than as key events.
@@ -332,15 +342,7 @@ public class OrbitPlayerPlugin extends Plugin {
 
             @Override
             public void onCues(@NonNull CueGroup cueGroup) {
-                StringBuilder sb = new StringBuilder();
-                for (Cue c : cueGroup.cues) {
-                    if (c.text == null) continue;
-                    if (sb.length() > 0) sb.append('\n');
-                    sb.append(c.text.toString());
-                }
-                JSObject o = new JSObject();
-                o.put("text", sb.toString());
-                notifyListeners("cues", o);
+                if (subtitles != null) subtitles.setCues(cueGroup.cues);
             }
 
             @Override
@@ -562,6 +564,7 @@ public class OrbitPlayerPlugin extends Plugin {
         main.post(() -> {
             main.removeCallbacks(ticker);
             if (player != null) { player.stop(); player.clearMediaItems(); }
+            if (subtitles != null) subtitles.setCues(java.util.Collections.emptyList());
             url = null;
             videoW = videoH = 0;
             if (container != null) container.setVisibility(View.GONE);
@@ -600,6 +603,25 @@ public class OrbitPlayerPlugin extends Plugin {
         main.post(() -> { aspect = mode; zoom = z; layoutVideo(); call.resolve(); });
     }
 
+    @PluginMethod
+    public void setSubtitleStyle(PluginCall call) {
+        float scale = call.getFloat("scale", 1f);
+        boolean bg = Boolean.TRUE.equals(call.getBoolean("background", true));
+        boolean raised = Boolean.TRUE.equals(call.getBoolean("raised", false));
+        main.post(() -> { subtitleScale = scale; subtitleBackground = bg; subtitleRaised = raised; styleSubtitles(); call.resolve(); });
+    }
+
+    private void styleSubtitles() {
+        if (subtitles == null) return;
+        subtitles.setApplyEmbeddedStyles(true);
+        subtitles.setApplyEmbeddedFontSizes(false);
+        subtitles.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.15f * subtitleScale);
+        subtitles.setStyle(new CaptionStyleCompat(Color.WHITE, subtitleBackground ? 0xB3000000 : Color.TRANSPARENT, Color.TRANSPARENT,
+                subtitleBackground ? CaptionStyleCompat.EDGE_TYPE_NONE : CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null));
+        // Move up while the player controls are showing, so they don't cover the words.
+        subtitles.setBottomPaddingFraction(subtitleRaised ? 0.3f : SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION);
+    }
+
     /* ------------------------------ layout ------------------------------ */
 
     private static int[] rectFrom(JSObject r) {
@@ -629,6 +651,13 @@ public class OrbitPlayerPlugin extends Plugin {
         flp.topMargin = fy;
         flp.gravity = Gravity.TOP | Gravity.START;
         frame.setLayoutParams(flp);
+        // Subtitles cover the same area as the picture, and are hidden in the small preview box.
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(fw, fh);
+        slp.leftMargin = fx;
+        slp.topMargin = fy;
+        slp.gravity = Gravity.TOP | Gravity.START;
+        subtitles.setLayoutParams(slp);
+        subtitles.setVisibility(rect != null ? View.GONE : View.VISIBLE);
 
         // In the preview box the picture always fits; zoom and crop only apply full screen.
         String mode = rect != null ? "fit" : aspect;

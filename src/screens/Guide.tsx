@@ -13,6 +13,7 @@ import { Icon } from '../ui/icons';
 import { openSheet, closeAllSheets, SheetItem } from '../ui/overlays';
 import { openItemMenu } from '../ui/cards';
 import { clock, dayLabel } from '../core/format';
+import { cleanChannelName } from '../core/names';
 import * as P from '../player/controller';
 import { catchupPlayable } from '../player/playables';
 
@@ -150,17 +151,17 @@ export function Guide() {
       <div class="guide">
         <div class="guide-head">
           <h1>TV Guide</h1>
-          <button class="chip" onClick={chooseCategory}><Icon name="list" style={{ width: '1.1rem', height: '1.1rem' }} />{groupLabel}</button>
-          <button class="chip" onClick={() => shiftDay(-1)} aria-label="Previous day"><Icon name="left" style={{ width: '1.1rem', height: '1.1rem' }} /></button>
+          <button class="chip" onClick={chooseCategory}><Icon name="list" />{groupLabel}</button>
+          <button class="chip" onClick={() => shiftDay(-1)} aria-label="Previous day"><Icon name="left" /></button>
           <span class="tnum" style={{ minWidth: '7rem', textAlign: 'center', fontWeight: 650 }}>{dayLabel(cur.time)}</span>
-          <button class="chip" onClick={() => shiftDay(1)} aria-label="Next day"><Icon name="right" style={{ width: '1.1rem', height: '1.1rem' }} /></button>
+          <button class="chip" onClick={() => shiftDay(1)} aria-label="Next day"><Icon name="right" /></button>
           <button class="chip" onClick={goNow}>Now</button>
         </div>
         <div class="guide-detail">
           {focusedProg && focusedChannel ? (
             <>
               <div>
-                <div class="when">{focusedChannel.name}  ·  {dayLabel(focusedProg.start)} {clock(focusedProg.start)} – {clock(focusedProg.stop)}
+                <div class="when">{cleanChannelName(focusedChannel.name).name}  ·  {dayLabel(focusedProg.start)} {clock(focusedProg.start)} – {clock(focusedProg.stop)}
                   {focusedProg.stop <= now && canCatchup(focusedChannel, focusedProg, now) ? '  ·  Catch-up available' : ''}</div>
                 <h2 class="clip">{focusedProg.title}</h2>
                 {focusedProg.desc && <p class="clamp2">{focusedProg.desc}</p>}
@@ -187,7 +188,7 @@ export function Guide() {
                 <div key={c.key} class="guide-row" style={{ top: `${k * size.row}px`, height: `${size.row}px` }}>
                   <div class="guide-ch" style={{ width: `${size.ch}px` }}>
                     <span class="logo"><Img src={c.logo} alt={c.name} fit="contain" /></span>
-                    <span><div class="num">{c.number}</div><b class="clip" style={{ display: 'block' }}>{c.name}</b></span>
+                    <span><div class="num">{c.number}</div><b class="clip" style={{ display: 'block' }}>{cleanChannelName(c.name).name}</b></span>
                   </div>
                   <div class="guide-track">
                     {blocks.map(p => {

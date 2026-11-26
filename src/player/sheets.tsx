@@ -33,13 +33,15 @@ function SubtitlesBody() {
   return (
     <>
       <SheetItem label="Off" checked={!anyOn} onClick={() => { P.subtitlesOff(); }} autofocus />
-      {text.map(t => <SheetItem key={t.id} label={t.label} sub="In the stream" checked={t.selected && !ext} onClick={() => P.selectEmbeddedSubtitles(t.id)} />)}
+      {text.length > 0 && <div class="sheet-label">In this {cur?.kind === 'episode' ? 'episode' : cur?.kind === 'live' ? 'channel' : 'film'}</div>}
+      {text.map(t => <SheetItem key={t.id} label={t.label} checked={t.selected && !ext} onClick={() => P.selectEmbeddedSubtitles(t.id)} />)}
+      {vod && <div class="sheet-label">{text.length ? 'Or find others' : 'This video has no subtitles of its own'}</div>}
       {ext && <SheetItem label={ext.label} sub="Loaded file" checked onClick={() => {}} />}
       {vod && osAvailable() && <SheetItem icon={<Icon name="search" />} label="Find on OpenSubtitles" sub={`Language: ${s.subLang}`} onClick={() => openSheet('OpenSubtitles', () => <OpenSubtitlesBody />)} />}
       {vod && !osAvailable() && <SheetItem icon={<Icon name="search" />} label="Find on OpenSubtitles" sub="Add a free API key in Settings → Subtitles first" onClick={() => toast('Add an OpenSubtitles API key in Settings → Subtitles.')} />}
       {PLATFORM !== 'android' && <SheetItem icon={<Icon name="file" />} label="Open a subtitle file" sub=".srt or .vtt" onClick={pickFile} />}
 
-      {anyOn && (
+      {anyOn && (ext || !P.embeddedDrawnNatively()) && (
         <>
           <div class="sheet-label">Timing: if words appear before they are spoken, press +</div>
           <div class="stepper">

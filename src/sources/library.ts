@@ -33,6 +33,8 @@ export interface Settings {
   subLang: string;
   subSize: number; // percent
   subBackground: boolean;
+  /** Turn on a film's own subtitles when they are in the viewer's language. */
+  autoSubtitles: boolean;
   askBeforeExit: boolean;
   showNumbers: boolean;
   autoplayNext: boolean;
@@ -42,7 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
   engine: 'native', liveFormat: 'auto', skipStep: 10, controlsTimeout: 5,
   aspectLive: 'fit', aspectVod: 'fit', epgOffset: 0, extraEpg: [], epgMap: {}, refreshHours: 12,
   tmdbKey: '', osKey: '', osUser: '', osPass: '', subLang: (typeof navigator !== 'undefined' ? navigator.language : 'en').slice(0, 2) || 'en',
-  subSize: 100, subBackground: true, askBeforeExit: true, showNumbers: true, autoplayNext: true,
+  subSize: 100, subBackground: true, autoSubtitles: true, askBeforeExit: true, showNumbers: true, autoplayNext: true,
 };
 
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });

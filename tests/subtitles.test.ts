@@ -56,3 +56,21 @@ describe('OpenSubtitles', () => {
     expect(releaseSimilarity('The.Matrix.1999.1080p.BluRay.x264', 'The Matrix 1999 1080p BluRay')).toBeGreaterThan(releaseSimilarity('The.Matrix.1999.720p.WEB', 'The Matrix 1999 1080p BluRay'));
   });
 });
+
+import { pickSubtitleTrack, trackLanguage } from '../src/services/subtitles';
+describe('choosing a film\'s own subtitles', () => {
+  it('reads two- and three-letter codes and labels', () => {
+    expect(trackLanguage('eng', '')).toBe('en');
+    expect(trackLanguage('en-GB', '')).toBe('en');
+    expect(trackLanguage('und', 'English SDH')).toBe('en');
+    expect(trackLanguage('', 'Track 1')).toBe('');
+  });
+  it('picks the full track in the viewer\'s language over a forced one', () => {
+    const t = [{ id: 'a', language: 'fre', label: 'French' }, { id: 'b', language: 'eng', label: 'English Forced' }, { id: 'c', language: 'eng', label: 'English' }];
+    expect(pickSubtitleTrack(t, 'en')?.id).toBe('c');
+    expect(pickSubtitleTrack(t, 'de')).toBeNull();
+  });
+  it('uses a single unlabelled track', () => {
+    expect(pickSubtitleTrack([{ id: 'x', language: '', label: 'Subtitles 1' }], 'en')?.id).toBe('x');
+  });
+});
