@@ -1,5 +1,7 @@
 package com.matrixstreams.player;
 
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.KeyEvent;
 
@@ -11,6 +13,9 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(OrbitPlayerPlugin.class);
         super.onCreate(savedInstanceState);
+        // Whatever shows through the see-through page round the video (for instance the thin gaps
+        // round the mini screen) is black, never the theme's light grey.
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
     }
 
     /**

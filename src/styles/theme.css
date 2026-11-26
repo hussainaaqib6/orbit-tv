@@ -693,13 +693,12 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .pv-top { display: flex; flex: none; padding: 1.2rem 1.2rem 0 1.2rem; gap: 1.1rem; }
 .pv-top .preview-video { width: 60%; padding-bottom: 33.75%; border-radius: 0; box-shadow: none; }
 /* With the picture showing, the page is see-through and only the mini screen box may stay clear.
-   The details and schedule paint their own backgrounds; the thin gaps round the box show the black
-   behind the picture. (A huge shadow used to paint the panel instead, but it was redrawn on every
-   schedule update, which was slow on TV sticks.) */
-body.video-preview .preview { background: transparent; }
+   A narrow ring of shadow round the box paints the gaps round it (the panel padding and the space
+   before the details); the details and schedule are positioned, so they draw over the ring. The
+   ring is kept small: a huge one was redrawn on every schedule update. */
+body.video-preview .preview { background: transparent; overflow: hidden; }
+body.video-preview .pv-top .preview-video { box-shadow: 0 0 0 1.4rem var(--bg); }
 body.video-preview .pv-info, body.video-preview .pv-epg, body.video-preview .preview > .pv-error { background: var(--bg); }
-body.video-preview .pv-top { padding-right: 0; }
-body.video-preview .pv-info { align-self: stretch; margin: -1.2rem 0 0; padding: 1.2rem 1.2rem 0 1.1rem; }
 .pv-info { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .pv-badge { align-self: flex-start; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; color: var(--on-accent); background: var(--blue); padding: 0.18rem 0.5rem; border-radius: 0.25rem; }
 .pv-channel { font-weight: 700; font-size: 1.05rem; }
@@ -774,3 +773,9 @@ html[data-bg-image] .screen.opaque { background-color: transparent; }
 .sec-search-clear { position: absolute; right: 0.3rem; width: 2rem; height: 2rem; border-radius: 0.3rem; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .sec-search-clear svg { width: 1rem; height: 1rem; }
 .sec-search-clear:focus { background: var(--blue); color: var(--on-accent); }
+/* The details stretch into the panel's top and right padding so their background covers it. */
+body.video-preview .pv-info { margin: -1.2rem -1.2rem 0 0; padding: 1.2rem 1.2rem 0 0; }
+
+/* Screens: the top-level one stays mounted, hidden, under a film/series/settings page. */
+.slot { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.slot.kept { visibility: hidden; }

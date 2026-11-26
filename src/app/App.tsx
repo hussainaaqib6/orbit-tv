@@ -1,8 +1,8 @@
 // The app shell: the current screen, the player, and the overlays on top. Home is the hub: every
 // screen is opened from its tiles, and Back always leads back to it.
 import { useEffect } from 'preact/hooks';
-import { route, pop, goRoot } from '../nav/router';
-import { setBaseBack, setShortcutHandler, handleNativeKey, installKeyHandling } from '../nav/focus';
+import { route, pop, goRoot, stack, takeReturnFocus, type Route } from '../nav/router';
+import { setBaseBack, setShortcutHandler, handleNativeKey, installKeyHandling, focusEl } from '../nav/focus';
 import { lastChannel } from '../player/controller';
 import { runShortcut, DEFAULT_MAP } from './shortcuts';
 import { applyTheme } from '../core/theme';
@@ -34,8 +34,7 @@ export async function exitApp() {
   else if (PLATFORM === 'electron') window.orbitDesktop?.quit();
 }
 
-function Screen() {
-  const r = route.value;
+function render(r: Route) {
   switch (r.name) {
     case 'home': return <Home />;
     case 'live': return <Live key="live" initialGroup={r.group} />;
@@ -49,6 +48,21 @@ function Screen() {
     case 'movie': return <MovieDetail key={r.key} itemKey={r.key} />;
     case 'show': return <ShowDetail key={r.key} itemKey={r.key} />;
   }
+}
+
+/**
+ * The top-level screen stays mounted (hidden) while a film, series or settings page is open on top
+ * of it, so Back returns to it exactly as it was: same category, same scroll, same poster.
+ */
+function Screens() {
+  const s = stack.value;
+  const deep = s.length > 1;
+  return (
+    <>
+      <div key="root" class={`slot${deep ? ' kept' : ''}`} inert={deep || undefined}>{render(s[0])}</div>
+      {deep && <div key="top" class="slot">{render(s[s.length - 1])}</div>}
+    </>
+  );
 }
 
 export function App() {
@@ -78,16 +92,21 @@ export function App() {
   useEffect(() => { applyTheme(settings.value.theme); }, [settings.value.theme]);
 
   // Put focus into each new screen (unless the player is full screen), and after the first load.
+  // Coming back (Back): onto the element it was opened from.
   useEffect(() => {
+    const back = takeReturnFocus();
     if (mode.value === 'full') return;
+    if (back instanceof HTMLElement && back.isConnected) { requestAnimationFrame(() => focusEl(back)); return; }
     const area = document.querySelector('.screen-area');
-    if (!area?.contains(document.activeElement) || document.activeElement === document.body) focusScreen();
+    const a = document.activeElement;
+    // Focus left on a screen now hidden underneath (the poster a film was opened from) doesn't count.
+    if (!area?.contains(a) || a === document.body || a?.closest('[inert]')) focusScreen();
   }, [route.value, noSources, loaded.value, booting.value]);
   return (
     <>
       <div class="shell" inert={mode.value === 'full' || (booting.value && !noSources) || undefined}>
         <main class="screen-area">
-          {noSources ? <Welcome /> : <Screen />}
+          {noSources ? <Welcome /> : <Screens />}
         </main>
       </div>
       {booting.value && !noSources && <Startup />}
