@@ -7,6 +7,11 @@ set -uo pipefail
 out=device-test; mkdir -p "$out"
 key() { for k in "$@"; do adb shell input keyevent "$k"; sleep 0.6; done; }
 shot() { sleep "${2:-1}"; adb exec-out screencap -p > "$out/$1.png"; echo "shot $1"; }
+# Frame timing from Android (gfxinfo): reset before a burst of key presses, report after it.
+PKG=com.matrixstreams.player
+frames_reset() { adb shell dumpsys gfxinfo $PKG reset > /dev/null; }
+frames() { echo "FRAMES $1: $(adb shell dumpsys gfxinfo $PKG | grep -E 'Total frames rendered|Janky frames|50th percentile|90th percentile|99th percentile' | tr -s ' ' | tr '\n' ';')" | tee -a "$out/frames.txt"; }
+burst() { for k in "$@"; do adb shell input keyevent "$k"; done; sleep 1; }
 alive() { adb shell pidof com.matrixstreams.player > /dev/null && echo yes || echo NO; }
 mem() { echo "$1: app alive=$(alive) $(adb shell dumpsys meminfo | grep -E 'com.matrixstreams.player|sandboxed_process' | tr -s ' ' | tr '\n' ';')" | tee -a "$out/memory.txt"; }
 wait_log() { # wait_log <pattern> <seconds> <shot prefix>
@@ -39,8 +44,12 @@ mem after-startup
 shot 03-home 2
 # Home: Live TV is the highlighted tile. OK opens the categories with channel cards.
 shot 04-home-tiles
+frames_reset; burst DPAD_RIGHT DPAD_RIGHT DPAD_RIGHT DPAD_DOWN DPAD_UP DPAD_LEFT DPAD_LEFT DPAD_LEFT; frames home
 key DPAD_CENTER
 shot 05-live-open 6
+# Speed: scroll the categories down and back, then the channel cards down and back.
+frames_reset; burst $(printf 'DPAD_DOWN %.0s' $(seq 1 15)) $(printf 'DPAD_UP %.0s' $(seq 1 15)); frames live-categories
+frames_reset; burst DPAD_RIGHT $(printf 'DPAD_DOWN %.0s' $(seq 1 6)) $(printf 'DPAD_UP %.0s' $(seq 1 6)) DPAD_LEFT; frames live-cards
 # Right into the cards, OK on the first: the mini screen plays it beside the channel list.
 key DPAD_RIGHT DPAD_CENTER
 shot 06-live-preview-playing 8
@@ -55,8 +64,10 @@ key DPAD_UP
 shot 10-full-zapped 6
 key BACK
 shot 11-back-to-preview 4
+frames_reset
 for i in $(seq 1 25); do adb shell input keyevent DPAD_DOWN; done
 shot 12-after-fast-scroll 2
+frames channel-list-with-preview
 mem live-tv
 # Live Sports: Back to the cards, Back to the categories, Back Home; Down to the footer, Right twice.
 key BACK BACK BACK DPAD_DOWN DPAD_RIGHT DPAD_RIGHT DPAD_CENTER

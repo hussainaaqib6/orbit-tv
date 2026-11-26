@@ -49,12 +49,28 @@ export const setShortcutHandler = (fn: (a: Action) => void) => { shortcut = fn; 
 
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Speed matters here: this runs on every remote press (20–30 a second on a held key), on screens
+// with hundreds of buttons. Each element is measured once per press, and the costly style check
+// (getComputedStyle) is only made for the one element about to get focus.
+
+/** Has a size and isn't inside something inert or hidden (cheap: no style lookup). */
+function hasBox(el: HTMLElement, r: DOMRect): boolean {
+  return r.width >= 1 && r.height >= 1 && !el.closest('[inert],[hidden]');
+}
 function visible(el: HTMLElement): boolean {
-  if (el.closest('[inert],[hidden]')) return false;
-  const r = el.getBoundingClientRect();
-  if (r.width < 1 || r.height < 1) return false;
+  if (!hasBox(el, el.getBoundingClientRect())) return false;
   const s = getComputedStyle(el);
   return s.visibility !== 'hidden' && s.display !== 'none';
+}
+/** Focusable elements in `root` with their boxes, measured once. */
+function measured(root: Element): { el: HTMLElement; r: DOMRect }[] {
+  const out: { el: HTMLElement; r: DOMRect }[] = [];
+  for (const el of root.querySelectorAll<HTMLElement>(FOCUSABLE)) {
+    if (el.hasAttribute('data-nofocus')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width >= 1 && r.height >= 1) out.push({ el, r });
+  }
+  return out;
 }
 
 export function focusables(root: Element = activeRoot()): HTMLElement[] {
@@ -89,7 +105,7 @@ document.addEventListener('focusin', e => { if (e.target instanceof HTMLElement)
 type Dir = 'up' | 'down' | 'left' | 'right';
 
 /** Picks the best element in `dir` from `from`, the way a TV remote is expected to move. */
-export function nextInDirection(from: DOMRect, dir: Dir, candidates: { el: HTMLElement; r: DOMRect }[]): HTMLElement | null {
+export function nextInDirection(from: DOMRect, dir: Dir, candidates: { el: HTMLElement; r: DOMRect }[], inLineOnly = false): HTMLElement | null {
   const horiz = dir === 'left' || dir === 'right';
   const sign = dir === 'right' || dir === 'down' ? 1 : -1;
   let best: HTMLElement | null = null, bestScore = Infinity;
@@ -106,6 +122,7 @@ export function nextInDirection(from: DOMRect, dir: Dir, candidates: { el: HTMLE
       ? Math.max(0, Math.max(r.top, from.top) - Math.min(r.bottom, from.bottom))
       : Math.max(0, Math.max(r.left, from.left) - Math.min(r.right, from.right));
     const overlap = cross === 0;
+    if (inLineOnly && !overlap) continue;
     const crossCentre = horiz ? Math.abs((r.top + r.bottom) / 2 - (from.top + from.bottom) / 2) : Math.abs((r.left + r.right) / 2 - (from.left + from.right) / 2);
     const score = Math.max(0, main) + (overlap ? crossCentre * 0.1 : cross * 3 + crossCentre * 0.5 + 1000);
     if (score < bestScore) { bestScore = score; best = el; }
@@ -115,17 +132,27 @@ export function nextInDirection(from: DOMRect, dir: Dir, candidates: { el: HTMLE
 
 export function moveFocus(dir: Dir, root: Element = activeRoot()): boolean {
   const cur = document.activeElement as HTMLElement | null;
-  const all = focusables(root);
   if (!cur || cur === document.body || !root.contains(cur)) { focusFirst(root); return true; }
+  const from = cur.getBoundingClientRect();
   // A scope keeps focus inside (e.g. a row of player buttons) unless it says which way it may leave.
   const scope = cur.closest<HTMLElement>('[data-nav-scope]');
-  let pool = all.filter(e => e !== cur);
-  if (scope && root.contains(scope)) {
-    const exits = (scope.dataset.navScope || '').split(/\s+/);
-    const inside = pool.filter(e => scope.contains(e));
-    if (!exits.includes(dir)) pool = inside;
-  }
-  const target = nextInDirection(cur.getBoundingClientRect(), dir, pool.map(el => ({ el, r: el.getBoundingClientRect() })));
+  const confined = !!scope && root.contains(scope) && !(scope.dataset.navScope || '').split(/\s+/).includes(dir);
+  // Try the current group first (a list or row): most presses move within it, and it holds far
+  // fewer elements than the whole screen. Only a target straight in line counts, so moving out of a
+  // list sideways still finds the neighbouring column.
+  const group = cur.closest<HTMLElement>('[data-nav-group]');
+  const pick = (area: Element, inLineOnly: boolean) => {
+    let pool = measured(area).filter(x => x.el !== cur && (!confined || scope!.contains(x.el)));
+    for (let tries = 0; tries < 4; tries++) {
+      const t = nextInDirection(from, dir, pool, inLineOnly);
+      if (!t) return null;
+      if (visible(t) && !t.closest('[inert],[hidden]')) return t;
+      pool = pool.filter(x => x.el !== t); // hidden by style: skip it and look again
+    }
+    return null;
+  };
+  let target = group && root.contains(group) ? pick(group, true) : null;
+  if (!target) target = pick(confined ? scope! : root, false);
   if (!target) return false;
   // Entering a remembered group: go to its remembered child instead.
   const g = target.closest('[data-nav-group]');
@@ -174,7 +201,17 @@ function defaultAction(action: Action) {
 const TRACE = import.meta.env.VITE_TRACE_FOCUS === '1';
 const describe = (el: Element | null) => !el || el === document.body ? 'body' : `${el.tagName.toLowerCase()}.${String(el.className).split(' ').join('.')} "${(el.textContent || '').trim().slice(0, 24)}"`;
 
+// A held key repeats faster than a TV stick can draw. Moves that arrive before the last one has been
+// drawn are dropped, so focus never queues up and overshoots when the key is let go.
+let moveFramePending = false;
+const MOVES = new Set<Action>(['up', 'down', 'left', 'right', 'pageup', 'pagedown', 'chup', 'chdown']);
+
 export function dispatch(action: Action, repeat = false) {
+  if (repeat && MOVES.has(action)) {
+    if (moveFramePending) return;
+    moveFramePending = true;
+    requestAnimationFrame(() => { moveFramePending = false; });
+  }
   if (!emitAction(action, repeat)) defaultAction(action);
   if (TRACE && !repeat) requestAnimationFrame(() => console.debug(`[orbit] ${action} -> ${describe(document.activeElement)}`));
 }

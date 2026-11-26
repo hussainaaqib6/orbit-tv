@@ -66,7 +66,7 @@ export function PairingPanel({ onAdded }: { onAdded?: () => void }) {
         {url ? <div dangerouslySetInnerHTML={{ __html: renderSVG(url, { border: 1 }) }} /> : <span class="spinner big" />}
       </div>
       {status === 'failed' ? (
-        <p class="error-text">The phone link could not start: {error} Use “Type it here” instead.</p>
+        <p class="error-text">The phone link could not start: {error} Use the sign-in form instead.</p>
       ) : (
         <>
           <p class="pair-how">Scan with your phone's camera. Your phone needs to be on the same Wi-Fi as this TV.</p>

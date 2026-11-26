@@ -38,7 +38,7 @@ export const PosterCard = memo(function PosterCard({ item, sub }: { item: Movie 
   return (
     <button class="poster-card" ref={ref} onClick={() => openItem(item)}>
       <div class="art">
-        <Img src={item.poster} alt={item.name} />
+        <Img src={item.poster} alt={item.name} defer />
         {rp && rp.duration > 0 && <div class="progress"><i style={{ width: `${(rp.position / rp.duration) * 100}%` }} /></div>}
         {item.kind === 'series' && newEpisodeOf(item) && <span class="badge-new">New episode</span>}
       </div>
@@ -59,7 +59,7 @@ export const PosterRow = memo(function PosterRow({ item, index, compact, rowProp
   void index;
   return (
     <button class={`vrow${compact ? ' compact' : ''}`} ref={ref} {...rp} onClick={() => openItem(item)}>
-      {!compact && <span class="vrow-art"><Img src={item.poster} alt={item.name} />{res && res.duration > 0 && <span class="progress"><i style={{ width: `${(res.position / res.duration) * 100}%` }} /></span>}</span>}
+      {!compact && <span class="vrow-art"><Img src={item.poster} alt={item.name} defer />{res && res.duration > 0 && <span class="progress"><i style={{ width: `${(res.position / res.duration) * 100}%` }} /></span>}</span>}
       <span class="vrow-meta">
         <b class="clip">{t.title}</b>
         <span class="vrow-bits clip">{bits}</span>
