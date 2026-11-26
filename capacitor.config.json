@@ -1,6 +1,6 @@
 {
   "appId": "tv.orbit.player",
-  "appName": "Orbit TV",
+  "appName": "Matrix TV Streams",
   "webDir": "dist",
   "server": {
     "androidScheme": "http",
@@ -11,10 +11,10 @@
   },
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#07080D"
+    "backgroundColor": "#0b0709"
   },
   "plugins": {
     "CapacitorHttp": { "enabled": false },
-    "StatusBar": { "style": "DARK", "backgroundColor": "#07080D", "overlaysWebView": false }
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0b0709", "overlaysWebView": false }
   }
 }

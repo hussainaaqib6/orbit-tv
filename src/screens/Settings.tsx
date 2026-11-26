@@ -10,6 +10,7 @@ import { Icon } from '../ui/icons';
 import { PLATFORM } from '../core/platform';
 import { focusEl } from '../nav/focus';
 import { defaults } from '../core/platform';
+import { APP_NAME } from '../core/brand';
 
 const SECTIONS = [
   { id: 'playlists', label: 'Playlists' }, { id: 'player', label: 'Player' }, { id: 'subtitles', label: 'Subtitles' },
@@ -80,7 +81,7 @@ function Playlists() {
             <div class="row" style={{ gap: '0.4rem' }}>
               <button class="btn icon" aria-label={`Edit ${s.name}`} onClick={() => setEditing(s)}><Icon name="edit" /></button>
               <button class="btn" onClick={() => { updateSource(s.id, { enabled: !s.enabled }); reload(); }}>{s.enabled ? 'Turn off' : 'Turn on'}</button>
-              <button class="btn icon danger" aria-label={`Remove ${s.name}`} onClick={async () => { if (await confirmDialog(`Remove ${s.name}?`, 'Its channels, films and series will disappear from Orbit.', 'Remove')) removeSource(s.id); }}><Icon name="trash" /></button>
+              <button class="btn icon danger" aria-label={`Remove ${s.name}`} onClick={async () => { if (await confirmDialog(`Remove ${s.name}?`, 'Its channels, films and series will disappear from the app.', 'Remove')) removeSource(s.id); }}><Icon name="trash" /></button>
             </div>
           </div>
         ))}
@@ -90,7 +91,7 @@ function Playlists() {
         <button class="btn" disabled={!!loading.value} onClick={() => reload()}><Icon name="refresh" />Refresh now</button>
       </div>
       <h3>Refresh automatically</h3>
-      <Choice label="Reload playlists when Orbit opens if they are older than" value={settings.value.refreshHours} onChange={v => updateSettings({ refreshHours: v })}
+      <Choice label="Reload playlists when the app opens if they are older than" value={settings.value.refreshHours} onChange={v => updateSettings({ refreshHours: v })}
         options={[{ v: 6, label: '6 hours' }, { v: 12, label: '12 hours' }, { v: 24, label: '1 day' }, { v: 72, label: '3 days' }]} />
     </>
   );
@@ -135,7 +136,7 @@ function Subtitles() {
       <TextSetting label="Preferred language (two letters)" value={s.subLang} onSave={v => updateSettings({ subLang: v.slice(0, 2).toLowerCase() || 'en' })} placeholder="en" />
       <h3>OpenSubtitles</h3>
       <TextSetting label="API key" value={s.osKey} onSave={v => updateSettings({ osKey: v })} type="password"
-        hint={defaults.osKey ? 'This build already includes a key; add your own to use your own quota.' : 'Free from opensubtitles.com → Consumers. Orbit matches subtitles to the exact file first, so they line up.'} />
+        hint={defaults.osKey ? 'This build already includes a key; add your own to use your own quota.' : 'Free from opensubtitles.com → Consumers. Subtitles are matched to the exact file first, so they line up.'} />
       <TextSetting label="Username (optional, for more downloads a day)" value={s.osUser} onSave={v => updateSettings({ osUser: v })} />
       <TextSetting label="Password" value={s.osPass} onSave={v => updateSettings({ osPass: v })} type="password" />
     </>
@@ -169,7 +170,7 @@ function General() {
     <>
       <h2>General</h2>
       <div class="stack">
-        <Toggle label="Ask before leaving Orbit" sub="Back on the main menu asks first" on={s.askBeforeExit} onChange={v => updateSettings({ askBeforeExit: v })} />
+        <Toggle label="Ask before leaving the app" sub="Back on the main menu asks first" on={s.askBeforeExit} onChange={v => updateSettings({ askBeforeExit: v })} />
         <Toggle label="Show channel numbers" on={s.showNumbers} onChange={v => updateSettings({ showNumbers: v })} />
       </div>
     </>
@@ -189,8 +190,8 @@ function Services() {
 function About() {
   return (
     <>
-      <h2>About Orbit TV</h2>
-      <p class="muted" style={{ maxWidth: '40rem', marginBottom: '1rem' }}>Version 2.0. Orbit plays streams from your own provider and comes with no channels or content of its own. Use it only with streams you have the right to watch.</p>
+      <h2>About {APP_NAME}</h2>
+      <p class="muted" style={{ maxWidth: '40rem', marginBottom: '1rem' }}>Version 2.0. The app plays streams from your own provider and comes with no channels or content of its own. Use it only with streams you have the right to watch.</p>
       <h3>Remote control</h3>
       <div class="stack muted" style={{ lineHeight: 1.7 }}>
         <div><b style={{ color: 'var(--ink)' }}>OK</b> opens or plays. <b style={{ color: 'var(--ink)' }}>Hold OK</b> or <b style={{ color: 'var(--ink)' }}>Menu</b> shows options for the highlighted item.</div>

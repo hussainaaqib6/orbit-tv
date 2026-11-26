@@ -1,4 +1,4 @@
-# Orbit TV
+# Matrix TV Streams
 
 An IPTV player for **Fire TV Stick, Android TV, Android phones, iPhone/iPad** and desktop (Windows, macOS, Linux). Bring your own provider: Orbit plays the channels, films and series from your own Xtream Codes login, M3U playlist or MAC portal. It comes with no content of its own.
 
