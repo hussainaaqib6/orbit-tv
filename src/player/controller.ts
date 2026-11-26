@@ -9,7 +9,9 @@ import { NATIVE, PLATFORM, IS_PHONE } from '../core/platform';
 import { friendlyError } from '../core/http';
 import { clamp } from '../core/format';
 import type { Channel, Playable } from '../sources/types';
-import { noteChannelPlayed, resume, saveResume, settings, type Aspect } from '../sources/library';
+import { noteChannelPlayed, resume, saveResume, settings, recentChannels, itemIndex, type Aspect } from '../sources/library';
+import { versionsOf } from '../sources/alternatives';
+import { toast } from '../ui/overlays';
 import { channelPlayable, channelUrl, episodeList, episodePlayable, liveFormat } from './playables';
 import { cueAt, parseSubtitles, pickSubtitleTrack, type Cue } from '../services/subtitles';
 
@@ -36,6 +38,16 @@ export const muted = signal(false);
 export const channelList = signal<Channel[]>([]);
 export const previousChannel = signal<Channel | null>(null);
 export const engineName = signal<'native' | 'web'>('web');
+/** What the stream is being fetched as, for the player's info line. */
+export const streamFormat = computed(() => {
+  const u = current.value?.url ?? '';
+  if (/\.m3u8(\?|$)|m3u8/i.test(u)) return 'HLS';
+  if (/\.mpd(\?|$)/i.test(u)) return 'DASH';
+  if (/\.(mp4|m4v|mov)(\?|$)/i.test(u)) return 'MP4';
+  if (/\.mkv(\?|$)/i.test(u)) return 'MKV';
+  if (/\.ts(\?|$)/i.test(u) || current.value?.kind === 'live') return 'MPEG-TS';
+  return '';
+});
 
 /** The subtitle text to draw now: external file (with delay/rate) or the embedded track. */
 export const subtitleText = computed(() => {
@@ -97,6 +109,8 @@ export interface PlayOptions {
   channels?: Channel[];
   /** Start from the beginning even if there is a resume point. */
   fromStart?: boolean;
+  /** Internal: a switch made by stream recovery (keeps its attempt count). */
+  recovering?: boolean;
 }
 
 export async function play(p: Playable, o: PlayOptions = {}) {
@@ -107,6 +121,7 @@ export async function play(p: Playable, o: PlayOptions = {}) {
 
   triedOtherFormat = false;
   autoSubsDone = false;
+  if (!o.recovering) recovery = newRecovery(p);
   batch(() => {
     current.value = p;
     error.value = '';
@@ -131,6 +146,7 @@ export async function play(p: Playable, o: PlayOptions = {}) {
   // The engine may have just been created: tell it where the picture goes before loading.
   // (Without this the first preview played full-size behind the screen, so the box stayed black.)
   e.setRect(mode.value === 'preview' ? previewRect : null);
+  applyMute();
   e.setAspect(aspect.value, 1);
   e.setSpeed(1);
   let url = p.url;
@@ -192,6 +208,7 @@ function setMode(m: Mode) {
   if (m === 'full' && was !== 'full') returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
   mode.value = m;
   if (engine) engine.setRect(m === 'preview' ? previewRect : null);
+  applyMute();
   document.body.classList.toggle('video-full', m === 'full');
   document.body.classList.toggle('video-preview', m === 'preview');
   if (was === m) return;
@@ -235,10 +252,29 @@ export function zap(delta: number) {
   play(channelPlayable(next), { preview: mode.value === 'preview' });
 }
 
-/** Back to the channel watched before this one (Yellow on a remote). */
-export function lastChannel() {
+/** The channel to go back to: the one before the channel playing now, or the last one watched. */
+export function lastChannelTarget(): Channel | null {
+  const playingKey = current.value?.kind === 'live' ? current.value.channel?.key : undefined;
   const p = previousChannel.value;
-  if (p) play(channelPlayable(p), { preview: mode.value === 'preview' });
+  if (p && p.key !== playingKey) return p;
+  const idx = itemIndex.value;
+  for (const k of recentChannels.value) {
+    if (k === playingKey) continue;
+    const c = idx.get(k);
+    if (c?.kind === 'live') return c;
+  }
+  return null;
+}
+
+/**
+ * Last channel (the remote's Last/Yellow key, or the menu shortcut): swaps between the two most
+ * recent channels. From any screen it opens the last channel full screen.
+ */
+export function lastChannel(): boolean {
+  const c = lastChannelTarget();
+  if (!c) { toast('No previous channel yet'); return false; }
+  play(channelPlayable(c), { preview: mode.value === 'preview', channels: channelList.value.some(x => x.key === c.key) ? channelList.value : undefined });
+  return true;
 }
 
 export function playEpisodeOffset(delta: number): boolean {
@@ -268,7 +304,11 @@ export function setSpeed(s: number) {
 }
 export function toggleMute() {
   muted.value = !muted.value;
-  engine?.setMuted(muted.value);
+  applyMute();
+}
+/** Muted when the viewer muted, or in the preview box when previews are set to be silent. */
+function applyMute() {
+  engine?.setMuted(muted.value || (mode.value === 'preview' && settings.value.previewMuted));
 }
 export function selectAudio(id: string) {
   engine?.selectTrack('audio', id);
@@ -343,13 +383,83 @@ function onError(msg: string) {
     if (other !== p.url) {
       triedOtherFormat = true;
       current.value = { ...p, url: other };
+      if (mode.value === 'full') toast(`Trying the ${/m3u8/.test(other) ? 'HLS' : 'MPEG-TS'} version of this stream`);
       getEngine().then(e => e.load(other, { live: true }));
       return;
     }
   }
+  // A channel that won't start goes straight to its next version rather than waiting.
+  if (p?.kind === 'live' && failover()) return;
   error.value = msg;
   state.value = 'error';
 }
+
+/* ------------------------------ stream recovery ------------------------------ */
+// A live stream that stalls (buffering, or the picture stops moving) for longer than the recovery
+// delay is reconnected; if that doesn't hold, the other stream format is tried, then other versions
+// of the channel. Only one stream is ever open: the old one is stopped before the next starts, so
+// provider connection limits are respected. Each step is tried once per channel, so it can't loop.
+
+interface Recovery { key: string; reconnects: number; tried: Set<string>; since: number; lastPos: number; lastMove: number; goodSince: number }
+let recovery: Recovery = newRecovery(null);
+function newRecovery(p: Playable | null): Recovery {
+  return { key: p?.channel?.key ?? p?.key ?? '', reconnects: 0, tried: new Set(p?.channel ? [p.channel.key] : []), since: 0, lastPos: -1, lastMove: Date.now(), goodSince: 0 };
+}
+
+/** Switches to the next untried version of the channel. Returns false when there is none. */
+function failover(): boolean {
+  const p = current.value;
+  const c = p?.channel;
+  if (!c || !settings.value.autoFailover) return false;
+  const next = versionsOf(c).find(v => !recovery.tried.has(v.key));
+  if (!next) return false;
+  recovery.tried.add(next.key);
+  recovery.reconnects = 0;
+  toast(`Switched to ${next.name}`);
+  engine?.stop();
+  play(channelPlayable(next), { preview: mode.value === 'preview', recovering: true });
+  return true;
+}
+
+function recover(why: string) {
+  const p = current.value;
+  if (!p || p.kind !== 'live') return;
+  console.info(`[orbit] recovery: ${why}`);
+  recovery.since = 0;
+  recovery.goodSince = 0;
+  recovery.lastMove = Date.now();
+  if (recovery.reconnects < 2) {
+    recovery.reconnects++;
+    if (mode.value === 'full') toast('Reconnecting…');
+    getEngine().then(e => e.load(p.url, { live: true }));
+    return;
+  }
+  if (failover()) return;
+  onError('The stream keeps stopping. The provider may be having problems with this channel.');
+}
+
+setInterval(() => {
+  const p = current.value;
+  const delay = settings.value.recoveryDelay * 1000;
+  if (!p || p.kind !== 'live' || !delay || error.value) { recovery.since = 0; return; }
+  const now = Date.now();
+  const st = state.value;
+  // Buffering or still starting for too long.
+  if (st === 'buffering' || st === 'loading') {
+    recovery.goodSince = 0;
+    if (!recovery.since) recovery.since = now;
+    else if (now - recovery.since > delay) recover(`stalled ${st}`);
+    return;
+  }
+  recovery.since = 0;
+  if (st !== 'playing') return;
+  // Playing, but the clock isn't moving: a frozen picture.
+  if (position.value !== recovery.lastPos) { recovery.lastPos = position.value; recovery.lastMove = now; }
+  else if (now - recovery.lastMove > delay + 2000) recover('frozen');
+  // Playing well for two minutes: start counting reconnects afresh.
+  if (!recovery.goodSince) recovery.goodSince = now;
+  else if (recovery.reconnects && now - recovery.goodSince > 120000) recovery.reconnects = 0;
+}, 1000);
 
 function onEnded() {
   const p = current.value;

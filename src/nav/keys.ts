@@ -7,7 +7,7 @@ export type Action =
   | 'up' | 'down' | 'left' | 'right' | 'ok' | 'hold-ok' | 'back' | 'menu' | 'info' | 'guide'
   | 'playpause' | 'play' | 'pause' | 'stop' | 'ff' | 'rw' | 'next' | 'prev' | 'chup' | 'chdown'
   | 'pageup' | 'pagedown' | 'red' | 'green' | 'yellow' | 'blue' | 'subtitle' | 'audio' | 'zoom'
-  | 'search' | 'fav' | 'mute' | 'fullscreen'
+  | 'search' | 'fav' | 'mute' | 'fullscreen' | 'last'
   | `digit${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
 
 export interface ActionDetail { action: Action; repeat: boolean }
@@ -30,7 +30,7 @@ const KEY_MAP: Record<string, Action> = {
 };
 
 /** Desktop keyboard shortcuts (only when no text field has focus). */
-const LETTERS: Record<string, Action> = { f: 'fav', m: 'mute', c: 'subtitle', a: 'audio', z: 'zoom', g: 'guide', i: 'info', '/': 'search', x: 'stop' };
+const LETTERS: Record<string, Action> = { l: 'last', f: 'fav', m: 'mute', c: 'subtitle', a: 'audio', z: 'zoom', g: 'guide', i: 'info', '/': 'search', x: 'stop' };
 
 export function actionForKey(e: Pick<KeyboardEvent, 'key' | 'keyCode'>, inText: boolean): Action | null {
   if (/^[0-9]$/.test(e.key) && !inText) return `digit${+e.key}` as Action;
@@ -56,6 +56,7 @@ export function actionForKey(e: Pick<KeyboardEvent, 'key' | 'keyCode'>, inText: 
     case 167: case 428: return 'chdown';
     case 403: return 'red'; case 404: return 'green'; case 405: return 'yellow'; case 406: return 'blue';
     case 461: return 'back';          // webOS / some Android TV remotes
+    case 229: return 'last';          // KEYCODE_LAST_CHANNEL
   }
   return null;
 }
@@ -68,7 +69,7 @@ export const NATIVE_KEY_MAP: Record<string, Action> = {
   MEDIA_SKIP_FORWARD: 'ff', MEDIA_SKIP_BACKWARD: 'rw', MEDIA_STEP_FORWARD: 'ff', MEDIA_STEP_BACKWARD: 'rw',
   CHANNEL_UP: 'chup', CHANNEL_DOWN: 'chdown', PAGE_UP: 'pageup', PAGE_DOWN: 'pagedown',
   PROG_RED: 'red', PROG_GREEN: 'green', PROG_YELLOW: 'yellow', PROG_BLUE: 'blue',
-  CAPTIONS: 'subtitle', MEDIA_AUDIO_TRACK: 'audio', TV_ZOOM_MODE: 'zoom', SEARCH: 'search', BOOKMARK: 'fav',
+  CAPTIONS: 'subtitle', MEDIA_AUDIO_TRACK: 'audio', LAST_CHANNEL: 'last', TV_ZOOM_MODE: 'zoom', SEARCH: 'search', BOOKMARK: 'fav',
   ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`NUMPAD_${i}`, `digit${i}`])),
 };
 

@@ -1,7 +1,8 @@
 // Live Sports: competitions | fixtures (today and the week ahead, live scores) | the highlighted
 // fixture with the streams in the playlist that show it. OK on a stream watches it full screen.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { catalog } from '../sources/library';
+import { catalog, settings, updateSettings, sourceById } from '../sources/library';
+import { connectionsLabel, refreshConnections } from '../services/connections';
 import type { Channel } from '../sources/types';
 import { LEAGUES, fixturesFor, indexChannels, matchStreams, leagueChannels, eventChannels, type Fixture, type League } from '../services/sports';
 import { friendlyError } from '../core/http';
@@ -42,13 +43,15 @@ export function Sports() {
   }, [sel]);
 
   // Fixtures worth showing: still to come, on now, or finished in the last six hours.
-  const fixtures = useMemo(() => load.state === 'ready'
-    ? load.fixtures.filter(f => f.state !== 'post' || Date.now() - f.start < 6 * 3600e3 + 3 * 3600e3)
-    : [], [load]);
   const streamsOf = useMemo(() => {
     const m = new Map<string, Channel[]>();
     return (f: Fixture) => { let s = m.get(f.id); if (!s) m.set(f.id, (s = matchStreams(ix, f))); return s; };
-  }, [ix, fixtures]);
+  }, [ix, load]);
+  const mine = settings.value.sportsMyChannels;
+  const fixtures = useMemo(() => load.state === 'ready'
+    ? load.fixtures.filter(f => (f.state !== 'post' || Date.now() - f.start < 9 * 3600e3) && (!mine || streamsOf(f).length > 0))
+    : [], [load, mine, streamsOf]);
+  const big = settings.value.matchCards === 'big';
   // Single-match channels belong to their own fixture, not to "channels that show this league".
   const usual = useMemo(() => {
     if (!league) return [];
@@ -100,14 +103,18 @@ export function Sports() {
         ) : (
           <>
             <section class="fx-col">
-              <div class="chlist-head"><h2 class="clip">{league?.name}</h2>{load.state === 'ready' && <span class="count">{fixtures.length}</span>}</div>
+              <div class="chlist-head">
+                <h2 class="clip">{league?.name}</h2>{load.state === 'ready' && <span class="count">{fixtures.length}</span>}
+                <span style={{ flex: 1 }} />
+                <button class={`chip small${mine ? ' on' : ''}`} onClick={() => updateSettings({ sportsMyChannels: !mine })} aria-pressed={mine}>My channels only</button>
+              </div>
               <div class="fx-list" data-nav-group="fixtures">
                 {load.state === 'loading' && <div class="empty"><span class="spinner big" /></div>}
                 {load.state === 'error' && <div class="empty"><p>Couldn't get the fixtures.</p><p class="hint">{load.message}</p></div>}
-                {load.state === 'ready' && !fixtures.length && <div class="empty"><p>No {league?.name} fixtures in the next week.</p></div>}
+                {load.state === 'ready' && !fixtures.length && <div class="empty"><p>{mine && load.fixtures.length ? `None of this week's ${league?.name} fixtures has a stream in your playlists yet.` : `No ${league?.name} fixtures in the next week.`}</p></div>}
                 {fixtures.map((f, i) => [
                   (i === 0 || dayLabel(f.start) !== dayLabel(fixtures[i - 1].start)) && <div class="fx-day" key={`d${f.id}`}>{dayLabel(f.start)}</div>,
-                  <FixtureRow key={f.id} f={f} streams={streamsOf(f).length}
+                  <FixtureRow key={f.id} f={f} streams={streamsOf(f).length} big={big} league={league!.name}
                     onFocus={() => setHi(f)}
                     onClick={() => { setHi(f); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.fx-detail button'))); }} />,
                 ])}
@@ -128,12 +135,44 @@ function Crest({ src, name }: { src?: string; name: string }) {
 }
 
 function Status({ f }: { f: Fixture }) {
+  if (f.status === 'postponed') return <span class="fx-off">Postponed</span>;
+  if (f.status === 'cancelled') return <span class="fx-off">Cancelled</span>;
+  if (f.status === 'halftime') return <span class="fx-live">Half time</span>;
   if (f.state === 'in') return <span class="fx-live">{f.detail || 'Live'}</span>;
   if (f.state === 'post') return <span class="fx-ft">{f.detail || 'FT'}</span>;
   return <span class="fx-time tnum">{clock(f.start)}</span>;
 }
 
-function FixtureRow({ f, streams, onFocus, onClick }: { f: Fixture; streams: number; onFocus: () => void; onClick: () => void }) {
+/** A team's colour, made dark enough for white text to stay readable on it. */
+function teamTint(hex: string, fallback: string) {
+  const h = /^#([0-9a-f]{6})$/i.exec(hex)?.[1];
+  if (!h) return fallback;
+  const n = parseInt(h, 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const k = lum > 0.55 ? 0.45 : lum > 0.35 ? 0.7 : 1; // darken light colours
+  return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+}
+
+/** Big match card: the two halves in each team's colours, crests, the time or score in the middle. */
+function BigCard({ f, streams, league, onFocus, onClick }: { f: Fixture; streams: number; league: string; onFocus: () => void; onClick: () => void }) {
+  const h = f.home!, a = f.away!;
+  const showScore = f.state !== 'pre';
+  return (
+    <button class={`bigfx${f.state === 'in' ? ' on-now' : ''}`} onFocus={onFocus} onClick={onClick}
+      style={{ '--home': teamTint(h.color, '#3a1018'), '--away': teamTint(a.color, '#1c1417') } as never}>
+      <span class="bf-side home"><Crest src={h.logo} name={h.short} /><b class="clip">{h.short}</b></span>
+      <span class="bf-mid">
+        {showScore ? <span class="bf-score tnum">{h.score}<i>–</i>{a.score}</span> : <span class="bf-time tnum">{clock(f.start)}</span>}
+        {f.status !== 'upcoming' && <Status f={f} />}
+      </span>
+      <span class="bf-side away"><Crest src={a.logo} name={a.short} /><b class="clip">{a.short}</b></span>
+      <span class="bf-foot"><span class="clip">{league}</span><span class={`fx-streams${streams ? ' has' : ''}`}>{streams ? `${streams} stream${streams === 1 ? '' : 's'}` : 'No stream yet'}</span></span>
+    </button>
+  );
+}
+
+function FixtureRow({ f, streams, big, league, onFocus, onClick }: { f: Fixture; streams: number; big: boolean; league: string; onFocus: () => void; onClick: () => void }) {
+  if (big && f.home && f.away) return <BigCard f={f} streams={streams} league={league} onFocus={onFocus} onClick={onClick} />;
   const showScore = f.state !== 'pre' && f.home && f.away;
   return (
     <button class={`fx${f.state === 'in' ? ' on-now' : ''}`} onFocus={onFocus} onClick={onClick}>
@@ -151,6 +190,10 @@ function FixtureRow({ f, streams, onFocus, onClick }: { f: Fixture; streams: num
 
 function FixtureDetail({ f, streams, usual, league, play }: { f: Fixture; streams: Channel[]; usual: Channel[]; league: League; play: (c: Channel, l: Channel[]) => void }) {
   const others = usual.filter(c => !streams.includes(c));
+  // Provider connection use for the playlists these streams come from.
+  const srcIds = [...new Set(streams.concat(others).map(c => c.sourceId))];
+  useEffect(() => { srcIds.forEach(id => { const src = sourceById(id); if (src) refreshConnections(src); }); }, [f.id]);
+  const conn = srcIds.map(id => sourceById(id)).filter(x => x?.type === 'xtream').map(x => `${x!.name}: ${connectionsLabel(x!).replace('Connections: ', '')}`);
   return (
     <div class="fxd">
       <div class="fxd-head">
@@ -164,6 +207,7 @@ function FixtureDetail({ f, streams, usual, league, play }: { f: Fixture; stream
         <div class="fxd-meta">{f.state !== 'pre' && <Status f={f} />}<span>{dayLabel(f.start)} {clock(f.start)}</span>{f.venue && <span class="clip">{f.venue}</span>}</div>
       </div>
       <div class="fxd-streams">
+        {conn.length > 0 && <p class="fxd-conn tnum">Connections · {conn.join(' · ')}</p>}
         <h3>Match streams</h3>
         {streams.length
           ? streams.map(c => <StreamRow key={c.key} c={c} onChoose={() => play(c, streams)} />)

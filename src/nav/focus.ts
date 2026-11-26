@@ -41,6 +41,9 @@ export function pushLayer(el: HTMLElement, onBack?: () => void): () => void {
 /** Handler for Back on the base layer (no overlays open). Set by the app shell. */
 let baseBack: () => void = () => {};
 export const setBaseBack = (fn: () => void) => { baseBack = fn; };
+/** Shortcut keys nothing on screen used (Last channel, Guide, Search…). Set by the app shell. */
+let shortcut: (a: Action) => void = () => {};
+export const setShortcutHandler = (fn: (a: Action) => void) => { shortcut = fn; };
 
 /* ------------------------------ focusables ------------------------------ */
 
@@ -162,6 +165,8 @@ function defaultAction(action: Action) {
     case 'pageup': case 'pagedown':
       for (let i = 0; i < 6; i++) moveFocus(action === 'pageup' ? 'up' : 'down');
       return;
+    default:
+      shortcut(action);
   }
 }
 

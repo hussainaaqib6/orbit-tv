@@ -1,7 +1,9 @@
 // The app shell: side menu, the current screen, the player, and the overlays on top.
 import { useEffect } from 'preact/hooks';
 import { route, pop } from '../nav/router';
-import { setBaseBack, handleNativeKey, installKeyHandling } from '../nav/focus';
+import { setBaseBack, setShortcutHandler, handleNativeKey, installKeyHandling } from '../nav/focus';
+import { lastChannel } from '../player/controller';
+import { goRoot } from '../nav/router';
 import { Rail, focusRail, focusScreen } from './Rail';
 import { Sheets, Dialog, Toasts, confirmDialog } from '../ui/overlays';
 import { PlayerOverlay } from '../player/PlayerOverlay';
@@ -54,6 +56,13 @@ export function App() {
       if (pop()) return;
       if (!document.activeElement?.closest('.rail')) focusRail();
       else exitApp();
+    });
+    // Remote shortcuts that work from any screen.
+    setShortcutHandler(a => {
+      if (booting.value) return;
+      if (a === 'last' || a === 'yellow') lastChannel();
+      else if (a === 'guide') goRoot({ name: 'guide' });
+      else if (a === 'search') goRoot({ name: 'search' });
     });
     if (PLATFORM === 'android') {
       const h = OrbitPlayer.addListener('key', e => handleNativeKey(e.key, e.action, e.repeat));

@@ -32,6 +32,16 @@ export const LEAGUES: League[] = [
   { id: 'spfl', name: 'Scottish Premiership', section: 'Football', path: 'soccer/sco.1', keywords: ['spfl', 'scottish premiership', 'sky sports football', 'premier sports'] },
   { id: 'eredivisie', name: 'Eredivisie', section: 'Football', path: 'soccer/ned.1', keywords: ['eredivisie', 'espn nl', 'ziggo'] },
   { id: 'mls', name: 'MLS', section: 'Football', path: 'soccer/usa.1', keywords: ['mls', 'apple tv'] },
+  { id: 'ligamx', name: 'Liga MX', section: 'Football', path: 'soccer/mex.1', keywords: ['liga mx', 'ligamx'] },
+  { id: 'saudi', name: 'Saudi Pro League', section: 'Football', path: 'soccer/ksa.1', keywords: ['saudi', 'roshn', 'spl'] },
+  { id: 'psl', name: 'South African Premiership', section: 'Football', path: 'soccer/rsa.1', keywords: ['betway premiership', 'psl', 'supersport'] },
+  { id: 'portugal', name: 'Primeira Liga', section: 'Football', path: 'soccer/por.1', keywords: ['primeira', 'liga portugal'] },
+  { id: 'turkey', name: 'Süper Lig', section: 'Football', path: 'soccer/tur.1', keywords: ['super lig', 'bein sports'] },
+  { id: 'sixnations', name: 'Six Nations', section: 'More sports', path: 'rugby/180659', keywords: ['six nations', '6 nations', 'rugby'] },
+  { id: 'atp', name: 'Tennis (ATP)', section: 'More sports', path: 'tennis/atp', keywords: ['atp', 'tennis', 'sky sports tennis'] },
+  { id: 'wta', name: 'Tennis (WTA)', section: 'More sports', path: 'tennis/wta', keywords: ['wta', 'tennis'] },
+  { id: 'pga', name: 'Golf (PGA Tour)', section: 'More sports', path: 'golf/pga', keywords: ['pga', 'golf', 'sky sports golf'] },
+  { id: 'ncaaf', name: 'NCAA Football', section: 'More sports', path: 'football/college-football', keywords: ['ncaa', 'college football'] },
   { id: 'ufc', name: 'UFC', section: 'More sports', path: 'mma/ufc', keywords: ['ufc', 'tnt sports', 'ppv'] },
   { id: 'f1', name: 'Formula 1', section: 'More sports', path: 'racing/f1', keywords: ['f1', 'formula 1', 'sky sports f1'] },
   { id: 'nfl', name: 'NFL', section: 'More sports', path: 'football/nfl', keywords: ['nfl', 'sky sports nfl', 'redzone'] },
@@ -40,13 +50,15 @@ export const LEAGUES: League[] = [
   { id: 'mlb', name: 'MLB', section: 'More sports', path: 'baseball/mlb', keywords: ['mlb'] },
 ];
 
-export interface Side { name: string; short: string; logo: string; score: string; aliases: string[] }
+export interface Side { name: string; short: string; logo: string; score: string; aliases: string[]; /** Club colours from the feed, as #rrggbb ('' if none). */ color: string; alt: string }
 export interface Fixture {
   id: string;
   leagueId: string;
   start: number;
   title: string;
   state: 'pre' | 'in' | 'post';
+  /** Finer status for the card: upcoming, live, half time, finished, postponed, cancelled. */
+  status: 'upcoming' | 'live' | 'halftime' | 'finished' | 'postponed' | 'cancelled';
   /** "63'", "Half Time", "FT"… from the feed. */
   detail: string;
   home?: Side;
@@ -134,10 +146,10 @@ export function teamAliases(names: string[]): string[] {
 
 /* ------------------------------ fixtures ------------------------------ */
 
-interface EspnCompetitor { homeAway?: string; score?: string; team?: { displayName?: string; shortDisplayName?: string; name?: string; location?: string; abbreviation?: string; logo?: string }; athlete?: { displayName?: string; shortName?: string } }
+interface EspnCompetitor { homeAway?: string; score?: string; team?: { displayName?: string; shortDisplayName?: string; name?: string; location?: string; abbreviation?: string; logo?: string; color?: string; alternateColor?: string }; athlete?: { displayName?: string; shortName?: string } }
 interface EspnEvent {
   id: string; date: string; name?: string; shortName?: string;
-  status?: { type?: { state?: string; detail?: string; shortDetail?: string } };
+  status?: { type?: { state?: string; name?: string; detail?: string; shortDetail?: string } };
   competitions?: { competitors?: EspnCompetitor[]; venue?: { fullName?: string }; broadcasts?: { names?: string[] }[] }[];
 }
 
@@ -151,7 +163,8 @@ function side(c: EspnCompetitor | undefined): Side | undefined {
   const names = [name, t?.shortDisplayName, t?.name, t?.location, a?.shortName].filter(Boolean) as string[];
   // Fighters and drivers are usually written by surname.
   if (a?.displayName) names.push(a.displayName.split(' ').slice(-1)[0]);
-  return { name, short: t?.shortDisplayName || a?.shortName || name, logo: t?.logo || '', score: c.score ?? '', aliases: teamAliases(names) };
+  const hex = (v?: string) => (v && /^[0-9a-f]{6}$/i.test(v) ? `#${v}` : '');
+  return { name, short: t?.shortDisplayName || a?.shortName || name, logo: t?.logo || '', score: c.score ?? '', aliases: teamAliases(names), color: hex(t?.color), alt: hex(t?.alternateColor) };
 }
 
 export function parseScoreboard(leagueId: string, j: { events?: EspnEvent[] }): Fixture[] {
@@ -162,9 +175,12 @@ export function parseScoreboard(leagueId: string, j: { events?: EspnEvent[] }): 
     const away = side(cs.find(c => c.homeAway === 'away') ?? cs[1]);
     const st = e.status?.type;
     const state = st?.state === 'in' ? 'in' : st?.state === 'post' ? 'post' : 'pre';
+    const n = st?.name ?? '';
+    const status: Fixture['status'] = /POSTPONED|DELAYED/.test(n) ? 'postponed' : /CANCELED|CANCELLED|ABANDONED/.test(n) ? 'cancelled'
+      : /HALFTIME/.test(n) ? 'halftime' : state === 'in' ? 'live' : state === 'post' ? 'finished' : 'upcoming';
     return {
       id: `${leagueId}:${e.id}`, leagueId, start: Date.parse(e.date), title: e.name || e.shortName || '',
-      state, detail: st?.shortDetail || st?.detail || '',
+      state, status, detail: st?.shortDetail || st?.detail || '',
       // Two-sided only when the feed names exactly two (a UFC card or a race has many).
       home: cs.length === 2 ? home : undefined, away: cs.length === 2 ? away : undefined,
       venue: comp?.venue?.fullName || '', tv: (comp?.broadcasts ?? []).flatMap(b => b.names ?? []),
@@ -208,6 +224,11 @@ export function indexChannels(list: Channel[]): ChannelIndex {
 
 const hasAny = (hay: string, needles: string[]) => needles.some(n => hay.includes(n));
 
+/** Channels that name a match but don't show it live: time-shifted, radio, highlights, replays. */
+const NOT_LIVE = / (radio|highlights?|replay|replays|reloaded|classic|rewind|extended|re run|rerun|delayed|catch ?up) /;
+const TIME_SHIFTED = /\+\s?\d\b/; // "+1" channels (checked on the raw name: norm() drops the "+")
+const notLive = (ix: ChannelIndex, i: number) => NOT_LIVE.test(ix.names[i]) || TIME_SHIFTED.test(ix.list[i].name);
+
 /** Event channels naming both sides, best first. */
 export function matchStreams(ix: ChannelIndex, f: Fixture): Channel[] {
   let a: string[], b: string[];
@@ -222,7 +243,7 @@ export function matchStreams(ix: ChannelIndex, f: Fixture): Channel[] {
   const out: Channel[] = [];
   for (let i = 0; i < ix.list.length; i++) {
     const n = ix.names[i];
-    if (hasAny(n, a) && hasAny(n, b)) out.push(ix.list[i]);
+    if (hasAny(n, a) && hasAny(n, b) && !notLive(ix, i)) out.push(ix.list[i]);
   }
   return out.slice(0, 40);
 }
@@ -232,6 +253,7 @@ export function leagueChannels(ix: ChannelIndex, league: League): Channel[] {
   const kws = league.keywords.map(norm);
   const named: Channel[] = [], grouped: Channel[] = [];
   for (let i = 0; i < ix.list.length; i++) {
+    if (notLive(ix, i)) continue;
     if (hasAny(ix.names[i], kws)) named.push(ix.list[i]);
     else if (hasAny(ix.groups[i], kws)) grouped.push(ix.list[i]);
     if (named.length >= 60) break;

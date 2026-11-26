@@ -39,7 +39,7 @@ function Facts({ year, extra, tmdb, rating, group }: { year?: number; extra: Ext
 function FavButton({ itemKey }: { itemKey: string }) {
   void favourites.value; // re-render on change
   const on = isFavourite(itemKey);
-  return <button class="btn quiet" onClick={() => toast(toggleFavourite(itemKey) ? 'Added to favourites' : 'Removed from favourites')}><Icon name="star" />{on ? 'Favourite' : 'Add to favourites'}</button>;
+  return <button class="btn quiet" onClick={() => toast(toggleFavourite(itemKey) ? 'Added to favourites' : 'Removed from favourites')}><Icon name="heart" />{on ? 'Favourite' : 'Add to favourites'}</button>;
 }
 
 export function MovieDetail({ itemKey }: { itemKey: string }) {
