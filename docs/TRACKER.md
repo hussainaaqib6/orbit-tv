@@ -147,3 +147,4 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 | Phase 2a | #8 | Stream recovery + failover, channel versions, Last Channel, finish time, mini-player options, favourites numbering, connection counts, hearts, settings search, Big match cards, My Channels Only, more competitions, sports match exclusions |
 | Phase 2b | #9 | Guide details and navigation, guide preview, hidden categories, parental controls, sorting, list views, remote buttons, side menu, themes |
 | Phase 2c | #10 | Search programmes and teams, customisable Home rows with sports rows, new-episode badges, Rate This, match-stream failover |
+| Device feedback 3 | #11 | Fire TV preview box via TextureView, black/frozen picture detection by frame count, speed fixes for 300k-item playlists, readable category names, divider rows, live subtitles (DVB/CEA-608/708), split saved playlist |

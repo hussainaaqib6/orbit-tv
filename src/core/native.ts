@@ -8,7 +8,7 @@ export interface NativeRect { x: number; y: number; width: number; height: numbe
 export interface NativeTrack { id: string; type: 'audio' | 'text' | 'video'; label: string; language: string; selected: boolean; codec?: string; width?: number; height?: number }
 export interface NativeState { state: 'idle' | 'buffering' | 'ready' | 'ended'; playing: boolean }
 export interface NativeProgress { id: string; bytes: number; total: number; items: number; file?: number; files?: number }
-export interface NativeTime { position: number; duration: number; buffered: number; live: boolean; seekable: boolean }
+export interface NativeTime { position: number; duration: number; buffered: number; live: boolean; seekable: boolean; frames?: number }
 
 export interface OrbitPlayerPlugin {
   load(o: { url: string; headers?: Record<string, string>; startPosition?: number; live?: boolean; rect?: NativeRect | null }): Promise<void>;

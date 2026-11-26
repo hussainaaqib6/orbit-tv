@@ -15,7 +15,7 @@ from urllib.parse import urlparse, parse_qs
 DIR = sys.argv[1]
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8098
 STATIC = 'http://10.0.2.2:8099'
-N_LIVE, N_VOD, N_SERIES, N_GUIDE = 15000, 60000, 15000, 6000
+N_LIVE, N_VOD, N_SERIES, N_GUIDE = 57000, 188000, 50000, 6000
 GUIDE_DAYS_BACK, GUIDE_DAYS_AHEAD = 2, 5
 rnd = random.Random(7)
 
@@ -39,6 +39,7 @@ for i, name in enumerate(sky):
     live.append({'num': i + 1, 'name': f'UK: {name} FHD', 'stream_type': 'live', 'stream_id': 100000 + i,
                  'stream_icon': '', 'epg_channel_id': name.replace(' ', '').lower() + '.uk', 'category_id': '902',
                  'tv_archive': 1 if i % 3 == 0 else 0, 'tv_archive_duration': 3})
+live.insert(0, {'num': 0, 'name': '##### UNITED KINGDOM #####', 'stream_type': 'live', 'stream_id': 99999, 'stream_icon': '', 'epg_channel_id': '', 'category_id': '1'})
 for i, (h, a) in enumerate(TEAMS):
     cat = '901' if i in (5, 6) else '900'
     pre = 'LaLiga' if cat == '901' else 'EPL'

@@ -23,7 +23,7 @@ export const guideTick = signal(0);
 let mem = new Map<string, Programme[]>();
 /** Recently used programmes from the Android database, oldest first. */
 const cache = new Map<string, Programme[]>();
-const CACHE_MAX = 1200;
+const CACHE_MAX = 4000;
 const pending = new Set<string>();
 const inFlight = new Set<string>();
 let timer = 0;
@@ -47,6 +47,21 @@ export function programmesById(id: string): Programme[] {
     if (!timer) timer = window.setTimeout(flush, 16);
   }
   return NONE;
+}
+
+/**
+ * Fetches programmes for these guide ids in one go (the rows about to come on screen), so scrolling
+ * finds them ready instead of each new row asking and every row redrawing when the answer arrives.
+ */
+export function prefetchGuide(ids: string[]) {
+  if (!NATIVE_GUIDE) return;
+  let added = false;
+  for (const id of ids) {
+    if (!guide.value.has.has(id) || cache.has(id) || inFlight.has(id) || pending.has(id)) continue;
+    pending.add(id);
+    added = true;
+  }
+  if (added && !timer) timer = window.setTimeout(flush, 16);
 }
 
 async function flush() {

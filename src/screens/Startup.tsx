@@ -63,7 +63,7 @@ export function Startup() {
     if (!bootFinished.value) return;
     const wait = Math.max(700, 1400 - (Date.now() - shown.current));
     const a = setTimeout(() => setLeaving(true), wait);
-    const b = setTimeout(() => { booting.value = false; console.info('[orbit] startup finished'); }, wait + 320);
+    const b = setTimeout(() => { booting.value = false; console.info(`[orbit] startup finished in ${Math.round((Date.now() - shown.current) / 1000)}s`); }, wait + 320);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [bootFinished.value]);
 

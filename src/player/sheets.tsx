@@ -39,6 +39,11 @@ function SubtitlesBody() {
       {text.length > 0 && <div class="sheet-label">In this {cur?.kind === 'episode' ? 'episode' : cur?.kind === 'live' ? 'channel' : 'film'}</div>}
       {text.map(t => <SheetItem key={t.id} label={t.label} checked={t.selected && !ext} onClick={() => P.selectEmbeddedSubtitles(t.id)} />)}
       {vod && <div class="sheet-label">{text.length ? 'Or find others' : 'This video has no subtitles of its own'}</div>}
+      {!vod && !text.length && <div class="sheet-label">This channel isn't sending subtitles right now. Live subtitles appear here when the broadcaster includes them in the stream (DVB subtitles or closed captions).</div>}
+      {!vod && (
+        <SheetItem label="Turn on live subtitles automatically" sub="Whenever a channel sends them" checked={s.liveSubtitles}
+          onClick={() => updateSettings({ liveSubtitles: !s.liveSubtitles })} />
+      )}
       {ext && <SheetItem label={ext.label} sub="Loaded file" checked onClick={() => {}} />}
       {vod && osAvailable() && <SheetItem icon={<Icon name="search" />} label="Find on OpenSubtitles" sub={`Language: ${s.subLang}`} onClick={() => openSheet('OpenSubtitles', () => <OpenSubtitlesBody />)} />}
       {vod && !osAvailable() && <SheetItem icon={<Icon name="search" />} label="Find on OpenSubtitles" sub="Add a free API key in Settings → Subtitles first" onClick={() => toast('Add an OpenSubtitles API key in Settings → Subtitles.')} />}

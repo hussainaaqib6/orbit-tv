@@ -208,7 +208,7 @@ textarea.input { height: 7rem; padding: 0.75rem 1.1rem; resize: vertical; }
 .initials { width: 100%; height: 100%; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; color: #e7c9cf; background: linear-gradient(150deg, #3a1219, #1a0d11); letter-spacing: -0.02em; }
 
 /* ------------------------------ lists with a category column ------------------------------ */
-.browse { display: grid; grid-template-columns: 16rem 1fr; height: 100%; }
+.browse { display: grid; grid-template-columns: 19rem 1fr; height: 100%; }
 .browse.folded { grid-template-columns: 0 1fr; }
 .browse.folded .cats { visibility: hidden; }
 .cats { background: var(--bg-2); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -224,7 +224,7 @@ textarea.input { height: 7rem; padding: 0.75rem 1.1rem; resize: vertical; }
 .cat-sep { color: var(--faint); font-size: 0.78rem; font-weight: 700; padding: 1rem 0.85rem 0.35rem; }
 
 /* ------------------------------ live TV ------------------------------ */
-.live { display: grid; grid-template-columns: 15rem minmax(0, 1fr) minmax(0, 0.98fr); height: 100%; }
+.live { display: grid; grid-template-columns: 18.5rem minmax(0, 1fr) minmax(0, 0.9fr); height: 100%; }
 .chlist { background: #110b0e; display: flex; flex-direction: column; min-height: 0; }
 .chlist-head, .vod-head { display: flex; align-items: center; gap: 0.8rem; }
 .chlist-head { padding: 1.7rem 1.3rem 0.8rem; }
@@ -493,7 +493,7 @@ body:not(.video-preview) .preview-video { background: #000; }
 .boot-skip { margin-top: 2.6rem; }
 
 /* ---------- Live Sports ---------- */
-.sports { display: grid; grid-template-columns: 15rem minmax(0, 1fr) minmax(0, 0.95fr); height: 100%; }
+.sports { display: grid; grid-template-columns: 17rem minmax(0, 1fr) minmax(0, 0.95fr); height: 100%; }
 .fx-col { background: #110b0e; display: flex; flex-direction: column; min-height: 0; }
 .fx-col.wide { grid-column: span 2; }
 .fx-note { margin: -0.3rem 1.3rem 0.6rem; color: var(--faint); font-size: 0.85rem; }
@@ -660,3 +660,14 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .prog-card:focus .muted, .prog-card:focus .when { color: #fff; }
 .badge-new { position: absolute; top: 0.45rem; left: 0.45rem; padding: 0.15rem 0.45rem; border-radius: 0.35rem; background: var(--blue); color: #fff; font-size: 0.7rem; font-weight: 800; }
 .art { position: relative; }
+
+/* Category names wrap onto two lines rather than being cut off. */
+.cat { min-height: 2.75rem; padding-top: 0.45rem; padding-bottom: 0.45rem; }
+.cat > .clip { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.22; word-break: break-word; }
+.chlist-head h2.clip, .vod-head h2.clip { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; font-size: 1.2rem; }
+
+.chrow .now { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.chrow .now .clip { flex: 1; min-width: 0; }
+.chrow.divider { grid-template-columns: auto minmax(0, 1fr); background: transparent; }
+.divider-name { color: var(--faint); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.04em; }
+.chrow.divider:focus .divider-name { color: #fff; }

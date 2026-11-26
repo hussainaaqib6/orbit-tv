@@ -41,3 +41,7 @@ export function cleanTitle(raw: string): { title: string; year: number } {
 /** Two-letter initials for logo placeholders. */
 export const initials = (s: string) =>
   String(s || '').replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'TV';
+
+/** Divider rows providers put in channel lists: "##### UK #####", "===== SPORTS =====", "--- NEWS ---". */
+export const isDivider = (name: string) => /^\s*([#=*~_\-|•●▬★]\s*){3,}/.test(name) || /([#=*~_\-|•●▬★]\s*){3,}\s*$/.test(name) && /^[^a-z]*$/.test(name);
+export const dividerLabel = (name: string) => name.replace(/[#=*~_\-|•●▬★]{2,}/g, ' ').replace(/\s{2,}/g, ' ').trim() || name;

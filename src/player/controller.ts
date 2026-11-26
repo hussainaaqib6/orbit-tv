@@ -11,6 +11,7 @@ import { clamp } from '../core/format';
 import type { Channel, Playable } from '../sources/types';
 import { noteChannelPlayed, resume, saveResume, settings, recentChannels, itemIndex, type Aspect } from '../sources/library';
 import { versionsOf } from '../sources/alternatives';
+import { isDivider } from '../core/names';
 import { toast } from '../ui/overlays';
 import { channelPlayable, channelUrl, episodeList, episodePlayable, liveFormat } from './playables';
 import { cueAt, parseSubtitles, pickSubtitleTrack, type Cue } from '../services/subtitles';
@@ -57,6 +58,8 @@ export const subtitleText = computed(() => {
 });
 
 let engine: Engine | null = null;
+/** Video frames drawn (native engine), or -1 when unknown. */
+let frames = -1;
 let triedOtherFormat = false;
 let autoSubsDone = false;
 export const subtitlesRaised = signal(false);
@@ -81,7 +84,8 @@ async function getEngine(): Promise<Engine> {
       if (s === 'playing') error.value = '';
       if (s === 'ended') onEnded();
     },
-    time: (t: { position: number; duration: number; live: boolean; seekable: boolean }) => {
+    time: (t: { position: number; duration: number; live: boolean; seekable: boolean; frames?: number }) => {
+      if (t.frames !== undefined && t.frames >= 0) frames = t.frames;
       batch(() => {
         position.value = t.position;
         duration.value = t.duration;
@@ -124,6 +128,7 @@ export async function play(p: Playable, o: PlayOptions = {}) {
   triedOtherFormat = false;
   autoSubsDone = false;
   if (!o.recovering) recovery = newRecovery(p, o.alternatives);
+  frames = -1;
   batch(() => {
     current.value = p;
     error.value = '';
@@ -250,7 +255,9 @@ export function zap(delta: number) {
   const list = channelList.value;
   if (!c || current.value?.kind !== 'live' || list.length < 2) return;
   const i = Math.max(0, list.findIndex(x => x.key === c.key));
-  const next = list[(i + delta + list.length) % list.length];
+  // Skip the provider's divider rows.
+  let next = list[(i + delta + list.length) % list.length];
+  for (let k = 2; isDivider(next.name) && k <= list.length; k++) next = list[(i + delta * k + list.length * k) % list.length];
   play(channelPlayable(next), { preview: mode.value === 'preview' });
 }
 
@@ -366,12 +373,16 @@ export const embeddedDrawnNatively = () => !!engine?.drawsEmbeddedSubtitles;
 /** Films and episodes: switch on the stream's own subtitles in the viewer's language, once per item. */
 function autoSubtitles(list: Track[]) {
   const p = current.value;
-  if (autoSubsDone || !list.length || !p || p.kind === 'live' || p.kind === 'catchup') return;
+  if (autoSubsDone || !list.length || !p) return;
+  const live = p.kind === 'live' || p.kind === 'catchup';
+  // Live: only when switched on (Settings → Subtitles), and only once the channel sends subtitles.
+  if (live && (!settings.value.liveSubtitles || !list.some(t => t.type === 'text'))) return;
   autoSubsDone = true;
-  if (!settings.value.autoSubtitles || external.value) return;
+  if ((!live && !settings.value.autoSubtitles) || external.value) return;
   const text = list.filter(t => t.type === 'text');
   if (text.some(t => t.selected)) return;
-  const pick = pickSubtitleTrack(text, settings.value.subLang);
+  // Live channels often label subtitle tracks oddly or not at all: take the first if none matches.
+  const pick = pickSubtitleTrack(text, settings.value.subLang) ?? (live ? text[0] : undefined);
   if (pick) engine?.selectTrack('text', pick.id);
 }
 
@@ -455,9 +466,14 @@ setInterval(() => {
   }
   recovery.since = 0;
   if (st !== 'playing') return;
-  // Playing, but the clock isn't moving: a frozen picture.
-  if (position.value !== recovery.lastPos) { recovery.lastPos = position.value; recovery.lastMove = now; }
-  else if (now - recovery.lastMove > delay + 2000) recover('frozen');
+  // Playing, but nothing moves: a frozen picture, or sound over a black picture. The native engine
+  // counts drawn frames, which catches both; otherwise the clock is used.
+  // Radio and audio-only streams never draw frames, so frames only count once the stream has video.
+  const hasVideo = frames > 0;
+  const byFrames = frames >= 0 && hasVideo;
+  const tick = byFrames ? frames : position.value;
+  if (tick !== recovery.lastPos) { recovery.lastPos = tick; recovery.lastMove = now; }
+  else if (now - recovery.lastMove > delay + 3000) recover(byFrames ? 'no new video frames' : 'frozen');
   // Playing well for two minutes: start counting reconnects afresh.
   if (!recovery.goodSince) recovery.goodSince = now;
   else if (recovery.reconnects && now - recovery.goodSince > 120000) recovery.reconnects = 0;

@@ -48,6 +48,7 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'autoplayNext', label: 'Play the next episode automatically', section: 'player', words: 'autoplay binge series' },
   { id: 'subSize', label: 'Subtitle size', section: 'subtitles', words: 'captions text font size' },
   { id: 'autoSubtitles', label: "Turn on a film's own subtitles", section: 'subtitles', words: 'captions automatic embedded' },
+  { id: 'liveSubtitles', label: 'Subtitles on live TV', section: 'subtitles', words: 'live tv subtitles captions dvb closed captions teletext channel' },
   { id: 'subBackground', label: 'Dark box behind subtitles', section: 'subtitles', words: 'captions background' },
   { id: 'subLang', label: 'Subtitle language', section: 'subtitles', words: 'captions language english' },
   { id: 'osKey', label: 'OpenSubtitles', section: 'subtitles', words: 'opensubtitles api key account captions download' },
@@ -201,6 +202,7 @@ function Subtitles() {
       <Choice id="subSize" label="Size" value={s.subSize} onChange={v => updateSettings({ subSize: v })} options={[80, 100, 125, 150].map(v => ({ v, label: `${v}%` }))} />
       <div class="stack" style={{ marginBottom: '1.4rem' }}>
         <Toggle id="autoSubtitles" label="Turn on a film's own subtitles" sub="When a film or episode has subtitles in your language, show them straight away" on={s.autoSubtitles} onChange={v => updateSettings({ autoSubtitles: v })} />
+        <Toggle id="liveSubtitles" label="Subtitles on live TV" sub="Switch on a channel's own subtitles (DVB or closed captions) whenever it sends them" on={s.liveSubtitles} onChange={v => updateSettings({ liveSubtitles: v })} />
         <Toggle id="subBackground" label="Dark box behind subtitles" on={s.subBackground} onChange={v => updateSettings({ subBackground: v })} />
       </div>
       <div data-setting="subLang" /><TextSetting label="Preferred language (two letters)" value={s.subLang} onSave={v => updateSettings({ subLang: v.slice(0, 2).toLowerCase() || 'en' })} placeholder="en" />
