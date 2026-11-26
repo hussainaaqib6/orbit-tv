@@ -1,15 +1,17 @@
-// Live TV: categories | channels with what's on now | the playing channel in a preview, with its guide.
-// Browsing the list never changes channel: OK plays the highlighted channel in the preview,
+// Live TV, in the classic IPTV layout: a plain list of channel names on the left; on the right the
+// preview with the channel's details beside it and its schedule underneath. The categories column
+// slides in when you press Left from the list and goes away again when you go back into the list.
+// Rows are deliberately bare (number and name, no logos or progress bars) so scrolling stays smooth
+// on a TV stick. Browsing never changes channel: OK plays the highlighted channel in the preview,
 // and OK on the channel that is already playing makes it full screen.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
-import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber, prefetchChannels } from '../sources/library';
+import { catalog, favourites, recentChannels, itemIndex, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber, prefetchChannels } from '../sources/library';
 import { isHidden } from '../sources/restrictions';
 import { isDivider, dividerLabel } from '../core/names';
 import { progress, indexAt } from '../sources/epg';
 import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
-import { Img } from '../ui/Img';
 import { Icon } from '../ui/icons';
 import { openItemMenu } from '../ui/cards';
 import { onAction } from '../nav/keys';
@@ -18,7 +20,6 @@ import { cleanChannelName } from '../core/names';
 import { clock } from '../core/format';
 import * as P from '../player/controller';
 import { toast } from '../ui/overlays';
-import { ProgrammeMeta, ProgrammeImage } from '../ui/programme';
 
 const FAV = '\u0001fav', RECENT = '\u0001recent', ALL = '\u0001all';
 
@@ -58,10 +59,16 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   const cats = useRef<HTMLElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const hiTimer = useRef(0);
-  const catTimer = useRef(0);
   const typed = useRef({ text: '', timer: 0 });
   const listRef = useRef(list);
   listRef.current = list;
+  // Categories shown (browsing categories) or folded away (in the channel list). Toggled on the DOM
+  // directly so it never re-renders the screen.
+  const fold = (on: boolean) => screen.current?.firstElementChild?.classList.toggle('folded', on);
+  const toCategories = () => {
+    fold(false);
+    requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.cat.on') ?? screen.current!.querySelector<HTMLElement>('.cat')));
+  };
 
   const mini = settings.value.miniPlayer;
   const follows = mini && settings.value.previewFollows;
@@ -146,13 +153,15 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   // Right from the categories: switch to the highlighted category now (if it hasn't yet), then go
   // into its list, at the playing channel if it is there.
+  // Categories only switch the list on OK or Right, never while scrolling through them, so moving
+  // up and down the categories costs nothing.
   const pendingGroup = useRef<string | null>(null);
   useEffect(() => onAction(cats.current!, a => {
     if (a !== 'right') return;
-    clearTimeout(catTimer.current);
     const g = pendingGroup.current;
     pendingGroup.current = null;
     if (g !== null) setGroup(g);
+    fold(true);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const rows = screen.current!.querySelectorAll<HTMLElement>('.chlist [data-index]');
       focusEl([...rows].find(r => r.classList.contains('playing')) ?? rows[0]);
@@ -180,16 +189,12 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   const cat = (key: string, label: string, n: number) => (
     <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => {
-        clearTimeout(catTimer.current);
-        pendingGroup.current = key;
-        catTimer.current = window.setTimeout(() => { pendingGroup.current = null; setGroup(key); }, 400);
-      }}
+      onFocus={() => { pendingGroup.current = key === group ? null : key; }}
       onClick={() => {
-        clearTimeout(catTimer.current);
         pendingGroup.current = null;
         setGroup(key);
-        requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.chlist [data-index]')));
+        fold(true);
+        requestAnimationFrame(() => requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('.chlist [data-index]'))));
       }}>
       <span class="clip">{label}</span><span class="n">{n}</span>
     </button>
@@ -201,7 +206,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   return (
     <div class="screen" ref={screen}>
-      <div class="live">
+      <div class="live folded">
         <aside class="cats" data-nav-group="cats" data-nav-scope="left right" ref={cats}>
           <div class="cats-head"><h1>Live TV</h1></div>
           <div class="cats-list">
@@ -215,14 +220,14 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
         <section class="chlist">
           <div class="chlist-head">
-            <h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
+            <Icon name="left" class="chlist-back" /><h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
             <button class="chip small" onClick={cycleChSort} aria-label="Change order"><Icon name="sort" />{CH_SORTS.find(x => x.id === chSort)!.label}</button>
           </div>
           {list.length ? (
-            <VirtualList items={list} rowRem={4.4} keyOf={c => c.key} startIndex={startIndex} jump={jump} navGroup="channels"
+            <VirtualList items={list} rowRem={3} keyOf={c => c.key} startIndex={startIndex} jump={jump} navGroup="channels"
               onFocusIndex={i => { highlight(list[i]); if (i % 20 === 0) prefetchChannels(list.slice(i, i + 80)); }}
               onRowAction={(a, i) => {
-                if (a === 'back' || a === 'left') { focusEl(screen.current!.querySelector<HTMLElement>('.cat.on')); return true; }
+                if (a === 'back' || a === 'left') { toCategories(); return true; }
                 if (a === 'hold-ok' || a === 'menu' || a === 'info') { openItemMenu(list[i]); return true; }
               }}
               render={(c, i) => <ChannelRow key={c.key} c={c} i={i} playing={c.key === playingKey} autofocus={i === startIndex} showNumbers={showNumbers} onHighlight={highlight} onChoose={choose} />} />
@@ -230,6 +235,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
         </section>
 
         <section class="preview">
+          <div class="pv-top">
           {mini && (
             <div class="preview-video" ref={box} onClick={() => playing && choose(playing)}>
               {!P.current.value && <div class="pv-msg"><Icon name="live" /><span>{follows ? 'Highlight a channel to preview it' : 'Press OK on a channel to watch it here'}</span></div>}
@@ -237,8 +243,10 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
             </div>
           )}
           {/* The picture is drawn over the box, so a stream error is shown under it. */}
+          {info ? <NowInfo channel={info} isPlaying={info.key === playingKey && mini} /> : <div class="pv-info" />}
+          </div>
           {mini && P.error.value && P.mode.value === 'preview' && <p class="error-text pv-error">{P.error.value}</p>}
-          {info && <ProgrammeInfo channel={info} isPlaying={info.key === playingKey && mini} />}
+          {info && <Schedule channel={info} />}
         </section>
       </div>
     </div>
@@ -257,58 +265,61 @@ const ChannelRow = memo(function ChannelRow({ c, i, playing, autofocus, showNumb
       </button>
     );
   }
-  const { now } = nowNextFor(c);
   return (
     <button class={`chrow${playing ? ' playing' : ''}`} {...rowProps(i)} data-autofocus={autofocus || undefined} onFocus={() => onHighlight(c)} onClick={() => onChoose(c)}>
       <span class="num">{showNumbers ? numberOf(c) : ''}</span>
-      <span class="logo"><Img src={c.logo} alt={name.name} /></span>
-      <span class="meta">
-        <span class="name"><span class="clip">{name.name}</span>{isHidden(settings.value, 'live', c.group) && <Icon name="hidden" class="hidden-mark" />}</span>
-        <span class="now">
-          {name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}
-          <span class="clip">{now ? now.title : 'No guide information'}</span>
-        </span>
-        {now && <span class="bar"><i style={{ width: `${progress(now) * 100}%` }} /></span>}
-      </span>
+      <span class="name clip">{name.name}</span>
+      {name.quality && <span class="tag">{name.quality}</span>}
+      {isHidden(settings.value, 'live', c.group) && <Icon name="hidden" class="hidden-mark" />}
       {playing && <span class="eq" aria-label="Playing"><i /><i /><i /></span>}
     </button>
   );
 });
 
-function ProgrammeInfo({ channel, isPlaying }: { channel: Channel; isPlaying: boolean }) {
+/** Re-renders every 30 seconds so "now" and the progress bar stay current. */
+function useMinuteTick() {
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(x => x + 1), 30000); return () => clearInterval(t); }, []);
+}
+
+/** Beside the preview: the channel, what's on now and how far through it is. */
+function NowInfo({ channel, isPlaying }: { channel: Channel; isPlaying: boolean }) {
+  useMinuteTick();
   const list = programmesFor(channel);
   const i = indexAt(list, Date.now());
   const now = i >= 0 && list[i].start <= Date.now() ? list[i] : null;
-  const from = now ? i + 1 : Math.max(0, i);
-  const upcoming = i >= 0 ? list.slice(from, from + 5) : [];
   return (
-    <div class="preview-info">
-      <div class="pi-channel">
-        <span class="pi-logo"><Img src={channel.logo} alt={channel.name} /></span>
-        <span class="clip"><span class="muted tnum">{numberOf(channel)}</span> {cleanChannelName(channel.name).name}</span>
-        {!isPlaying && <span class="pi-hint">OK to watch</span>}
-      </div>
+    <div class="pv-info">
+      <span class="pv-badge">{isPlaying ? 'LIVE TV' : 'OK to watch'}</span>
+      <div class="pv-channel clip"><span class="tnum">{numberOf(channel)}</span> {cleanChannelName(channel.name).name}</div>
       {now ? (
         <>
-          <div class="pi-now">
-            <ProgrammeImage p={now} />
-            <div style={{ minWidth: 0 }}>
-              <h2>{now.title}</h2>
-              <ProgrammeMeta p={now} />
-              <div class="when tnum"><span class="dot-live" />{clock(now.start)} – {clock(now.stop)}</div>
-            </div>
-          </div>
+          <div class="pv-title clamp2">{now.title}</div>
+          <div class="pv-when tnum">{clock(now.start)} – {clock(now.stop)}</div>
           <div class="livebar"><i style={{ width: `${progress(now) * 100}%` }} /></div>
-          {now.desc && <p class="desc clamp3">{now.desc}</p>}
         </>
-      ) : <h2>No guide information</h2>}
-      {upcoming.length > 0 && (
-        <div class="up-next">
-          {upcoming.map(p => <div key={p.start}><span class="tnum">{clock(p.start)}</span><b class="clip">{p.title}</b></div>)}
+      ) : <div class="pv-when">No guide information</div>}
+    </div>
+  );
+}
+
+/** Under the preview: now and the next programmes, each with a line of description. */
+function Schedule({ channel }: { channel: Channel }) {
+  useMinuteTick();
+  const list = programmesFor(channel);
+  const i = indexAt(list, Date.now());
+  const from = Math.max(0, i);
+  const rows = i >= 0 ? list.slice(from, from + 8) : [];
+  if (!rows.length) return <div class="pv-epg"><p class="muted">No guide information for this channel.</p></div>;
+  return (
+    <div class="pv-epg">
+      {rows.map((p, k) => (
+        <div key={p.start} class={`pv-prog${k === 0 && p.start <= Date.now() ? ' now' : ''}`}>
+          <span class="tnum">{clock(p.start)} – {clock(p.stop)}</span>
+          <b class="clip">{p.title}</b>
+          {p.desc && <span class="clip">{p.desc}</span>}
         </div>
-      )}
+      ))}
     </div>
   );
 }

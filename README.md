@@ -9,7 +9,7 @@ Version 2 is a rebuild. It has a remote-first interface built around a Home scre
 ## What it does
 
 **Live TV**
-- Categories, then channels with what's on now and a progress bar, then the highlighted channel playing in a preview with its upcoming programmes.
+- A plain list of channel names, with the preview top right, what's on now beside it and the schedule underneath. Left opens the categories.
 - Full screen with OK. Up/Down change channel, Left opens the channel list over the picture, and number keys jump to a channel. Yellow goes back to the last channel.
 - Catch-up for Xtream servers and M3U `catchup` attributes. Hold OK on a channel and choose **Catch up**, or pick a past programme in the TV guide.
 

@@ -45,7 +45,7 @@ export function themeVars(t: Theme): Record<string, string> {
   const a = t.accent, bg = t.background;
   return {
     '--blue': a, '--violet': shade(a, 0.15), '--cyan': shade(a, 0.3),
-    '--grad': `linear-gradient(180deg, ${shade(a, 0.1)}, ${shade(a, -0.22)})`,
+    '--grad': a, // flat: one solid colour, cheap to redraw on TV sticks
     '--ring': `0 0 0 0.16rem ${shade(a, 0.35)}`, '--glow': `0 0 0 0.16rem ${shade(a, 0.35)}`,
     '--accent-soft': shade(a, -0.72), '--accent-line': `${shade(a, 0.2)}66`, '--accent-glow': `${shade(a, -0.55)}88`,
     '--rail-glass': `${shade(bg, 0.04)}b3`,
