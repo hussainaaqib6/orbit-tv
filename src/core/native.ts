@@ -4,7 +4,7 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 
 export interface NativeKeyEvent { key: string; action: 'down' | 'up'; repeat: number }
-export interface NativeRect { x: number; y: number; width: number; height: number }
+export interface NativeRect { x: number; y: number; width: number; height: number; /** Page size in CSS pixels. */ vw?: number; vh?: number; dpr?: number }
 export interface NativeTrack { id: string; type: 'audio' | 'text' | 'video'; label: string; language: string; selected: boolean; codec?: string; width?: number; height?: number }
 export interface NativeState { state: 'idle' | 'buffering' | 'ready' | 'ended'; playing: boolean }
 export interface NativeProgress { id: string; bytes: number; total: number; items: number; file?: number; files?: number }
@@ -19,6 +19,7 @@ export interface OrbitPlayerPlugin {
   setRect(o: { rect: NativeRect | null }): Promise<void>;
   /** Draw the preview above the app (Android). */
   setOnTop(o: { onTop: boolean }): Promise<void>;
+  diagnostics(): Promise<Record<string, string>>;
   setAspect(o: { mode: string; zoom: number }): Promise<void>;
   setSpeed(o: { speed: number }): Promise<void>;
   setMuted(o: { muted: boolean }): Promise<void>;

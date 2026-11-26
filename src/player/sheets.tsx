@@ -14,6 +14,7 @@ import { episodeList, episodePlayable } from './playables';
 import type { Aspect } from '../sources/library';
 import type { Movie } from '../sources/types';
 import { versionsOf } from '../sources/alternatives';
+import { OrbitPlayer } from '../core/native';
 import { connectionsLabel, refreshConnections } from '../services/connections';
 import { sourceById } from '../sources/library';
 
@@ -254,6 +255,8 @@ function StreamInfo() {
   const cur = P.current.value;
   const src = cur?.channel ? sourceById(cur.channel.sourceId) : undefined;
   useEffect(() => { if (src) refreshConnections(src); }, []);
+  const [diag, setDiag] = useState<Record<string, string>>({});
+  useEffect(() => { if (P.engineName.value === 'native') OrbitPlayer.diagnostics().then(setDiag).catch(() => {}); }, []);
   const rows: [string, string][] = [
     ['Engine', P.engineName.value === 'native' ? 'ExoPlayer' : 'Web player'],
     ['Format', P.streamFormat.value || 'Unknown'],
@@ -261,5 +264,13 @@ function StreamInfo() {
     ['State', P.state.value],
     ...P.tracks.value.map(t => [t.type === 'audio' ? 'Audio' : 'Subtitles', `${t.label}${t.selected ? ' (on)' : ''}`] as [string, string]),
   ];
-  return <>{rows.map(([k, v], i) => <SheetItem key={i} label={k} value={v} onClick={() => {}} autofocus={i === 0} />)}</>;
+  // Where the picture was placed: a photo of this helps fix the preview box on a particular TV.
+  const tech = Object.entries(diag).filter(([, v]) => v);
+  return (
+    <>
+      {rows.map(([k, v], i) => <SheetItem key={i} label={k} value={v} onClick={() => {}} autofocus={i === 0} />)}
+      {tech.length > 0 && <div class="sheet-label">Technical details</div>}
+      {tech.map(([k, v]) => <SheetItem key={k} label={k} sub={v} onClick={() => {}} />)}
+    </>
+  );
 }

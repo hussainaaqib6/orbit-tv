@@ -6,10 +6,12 @@ import { OrbitPlayer, type NativeRect } from '../core/native';
 import { PLAYER_UA } from '../core/platform';
 import type { Engine, EngineEvents, LoadOptions, Rect } from './engine';
 
+// The box in CSS pixels plus the page size in CSS pixels: the native side scales by the WebView's real
+// size in screen pixels. (devicePixelRatio alone isn't reliable: some Fire TV WebViews report one
+// that doesn't match how the page is actually scaled, which put the preview in the wrong place.)
 const toNative = (r: Rect | null): NativeRect | null => {
   if (!r) return null;
-  const d = window.devicePixelRatio || 1;
-  return { x: Math.round(r.x * d), y: Math.round(r.y * d), width: Math.round(r.width * d), height: Math.round(r.height * d) };
+  return { x: r.x, y: r.y, width: r.width, height: r.height, vw: window.innerWidth, vh: window.innerHeight, dpr: window.devicePixelRatio || 1 };
 };
 
 export class NativeEngine implements Engine {

@@ -45,6 +45,7 @@ key DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_CENTER
 shot 05-live-open 6
 key DPAD_CENTER
 shot 06-live-preview-playing 8
+adb logcat -d | grep "OrbitPlayer.*layout rect" | tail -2
 key DPAD_DOWN DPAD_DOWN DPAD_DOWN
 shot 07-live-browsed 3
 key DPAD_CENTER
