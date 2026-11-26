@@ -32,8 +32,7 @@ key DPAD_CENTER
 shot 08-full 6
 key DPAD_UP
 shot 09-full-zapped 6
-key BACK
-shot 10a-controls-hidden 1
+# The controls have hidden themselves by now, so one Back closes full screen.
 key BACK
 shot 10-back-to-preview 4
 # Holding Down in the channel list: 25 fast presses.
