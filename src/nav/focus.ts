@@ -85,8 +85,9 @@ export function focusEl(el: HTMLElement | null | undefined, scroll = true) {
 }
 
 export function focusFirst(root: Element = activeRoot()) {
-  const pref = root.querySelector<HTMLElement>('[data-autofocus]');
-  if (pref && visible(pref)) return focusEl(pref);
+  // The first preferred element that can actually take focus (a hidden screen kept underneath a
+  // film page has its own, which must be skipped).
+  for (const pref of root.querySelectorAll<HTMLElement>('[data-autofocus]')) if (visible(pref)) return focusEl(pref);
   focusEl(focusables(root)[0]);
 }
 

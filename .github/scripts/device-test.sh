@@ -87,8 +87,8 @@ key DPAD_CENTER
 shot 19-film-controls 1
 key BACK BACK
 shot 20-film-closed 2
-# TV Guide: Back to the films, Back Home, Right once to TV Guide.
-key BACK BACK DPAD_RIGHT DPAD_CENTER
+# TV Guide: Back to the film's poster, Back to its category, Back Home, Right once to TV Guide.
+key BACK BACK BACK DPAD_RIGHT DPAD_CENTER
 shot 21-tv-guide 6
 key DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN DPAD_DOWN
 shot 22-tv-guide-scrolled 3

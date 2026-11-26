@@ -11,14 +11,30 @@ export type RootName = 'home' | 'live' | 'sports' | 'guide' | 'movies' | 'series
 export const stack = signal<Route[]>([{ name: 'home' }]);
 export const route = computed(() => stack.value[stack.value.length - 1]);
 
+/**
+ * Where focus was on each screen when another was opened on top of it (by depth), so Back lands on
+ * the same poster or row you picked it from.
+ */
+const returnFocus: (Element | null)[] = [];
+
 /** Switch to a top-level screen (clears history). */
 export function goRoot(r: Route) {
+  returnFocus.length = 0;
   stack.value = [r];
 }
 
 /** Open a screen on top of the current one. */
 export function push(r: Route) {
+  returnFocus[stack.value.length - 1] = typeof document !== 'undefined' ? document.activeElement : null;
   stack.value = [...stack.value, r];
+}
+
+/** After the stack changes: the element to focus on the screen now on top (set when it was left). */
+export function takeReturnFocus(): Element | null {
+  const depth = stack.value.length;
+  const el = returnFocus[depth - 1] ?? null;
+  returnFocus.length = depth - 1;
+  return el;
 }
 
 /** Returns false when already at a root screen. */
