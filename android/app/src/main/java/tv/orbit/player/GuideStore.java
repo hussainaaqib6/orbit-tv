@@ -358,6 +358,26 @@ final class GuideStore {
         return out.append('}').toString();
     }
 
+    /** Programmes whose title or episode title contains `q`, from `from` on, soonest first. */
+    static String search(Context ctx, String q, long from, int limit) {
+        SQLiteDatabase d = open(ctx);
+        JSONArray out = new JSONArray();
+        if (d == null || q == null || q.trim().length() < 2) return out.toString();
+        String like = "%" + q.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        synchronized (LOCK) {
+            try (Cursor c = d.rawQuery("SELECT ch, s, e, t, d, st, ep, cat, img, rt FROM p WHERE e > ? AND (t LIKE ? ESCAPE '\\' OR st LIKE ? ESCAPE '\\') ORDER BY s LIMIT ?",
+                    new String[]{Long.toString(from), like, like, Integer.toString(limit)})) {
+                while (c.moveToNext()) {
+                    JSONArray row = new JSONArray();
+                    row.put(c.getString(0)).put(c.getLong(1)).put(c.getLong(2)).put(c.getString(3)).put(c.getString(4))
+                       .put(c.getString(5)).put(c.getString(6)).put(c.getString(7)).put(c.getString(8)).put(c.getString(9));
+                    out.put(row);
+                }
+            }
+        }
+        return out.toString();
+    }
+
     private static String JSONObjectQuote(String s) { return org.json.JSONObject.quote(s); }
 
     static boolean exists(Context ctx) { return dbFile(ctx).exists() && indexFile(ctx).exists(); }

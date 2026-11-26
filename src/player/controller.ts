@@ -111,6 +111,8 @@ export interface PlayOptions {
   fromStart?: boolean;
   /** Internal: a switch made by stream recovery (keeps its attempt count). */
   recovering?: boolean;
+  /** Other channels showing the same thing (e.g. every stream of a match), tried after the channel's own versions. */
+  alternatives?: Channel[];
 }
 
 export async function play(p: Playable, o: PlayOptions = {}) {
@@ -121,7 +123,7 @@ export async function play(p: Playable, o: PlayOptions = {}) {
 
   triedOtherFormat = false;
   autoSubsDone = false;
-  if (!o.recovering) recovery = newRecovery(p);
+  if (!o.recovering) recovery = newRecovery(p, o.alternatives);
   batch(() => {
     current.value = p;
     error.value = '';
@@ -400,10 +402,10 @@ function onError(msg: string) {
 // of the channel. Only one stream is ever open: the old one is stopped before the next starts, so
 // provider connection limits are respected. Each step is tried once per channel, so it can't loop.
 
-interface Recovery { key: string; reconnects: number; tried: Set<string>; since: number; lastPos: number; lastMove: number; goodSince: number }
+interface Recovery { key: string; reconnects: number; tried: Set<string>; alts: Channel[]; since: number; lastPos: number; lastMove: number; goodSince: number }
 let recovery: Recovery = newRecovery(null);
-function newRecovery(p: Playable | null): Recovery {
-  return { key: p?.channel?.key ?? p?.key ?? '', reconnects: 0, tried: new Set(p?.channel ? [p.channel.key] : []), since: 0, lastPos: -1, lastMove: Date.now(), goodSince: 0 };
+function newRecovery(p: Playable | null, alts: Channel[] = []): Recovery {
+  return { key: p?.channel?.key ?? p?.key ?? '', reconnects: 0, tried: new Set(p?.channel ? [p.channel.key] : []), alts, since: 0, lastPos: -1, lastMove: Date.now(), goodSince: 0 };
 }
 
 /** Switches to the next untried version of the channel. Returns false when there is none. */
@@ -411,7 +413,7 @@ function failover(): boolean {
   const p = current.value;
   const c = p?.channel;
   if (!c || !settings.value.autoFailover) return false;
-  const next = versionsOf(c).find(v => !recovery.tried.has(v.key));
+  const next = [...versionsOf(c), ...recovery.alts].find(v => !recovery.tried.has(v.key));
   if (!next) return false;
   recovery.tried.add(next.key);
   recovery.reconnects = 0;

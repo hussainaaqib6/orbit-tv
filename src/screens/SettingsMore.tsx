@@ -8,6 +8,8 @@ import { PRESETS, DEFAULT_THEME, exportTheme, importTheme, themeVars, type Theme
 import { openSheet, closeAllSheets, SheetItem, toast, confirmDialog } from '../ui/overlays';
 import { Icon } from '../ui/icons';
 import { Choice } from './Settings';
+import { homeRows, ROW_LABELS } from './homeRows';
+import { LEAGUES } from '../services/sports';
 
 /* ------------------------------ remote buttons ------------------------------ */
 
@@ -172,6 +174,42 @@ export function Themes() {
           if (!t) { toast("That isn't a Matrix TV theme code.", true); return; }
           setDraft(t); setCode(''); toast(`Imported ${t.name}: shown in the preview. Use or save it.`);
         }}>Import</button>
+      </div>
+    </>
+  );
+}
+
+/* ------------------------------ home screen ------------------------------ */
+
+export function HomeSettings() {
+  const rows = homeRows(settings.value.homeRows);
+  const save = (r: typeof rows) => updateSettings({ homeRows: r });
+  const move = (i: number, d: number) => { const r = [...rows]; const j = i + d; if (j < 0 || j >= r.length) return; [r[i], r[j]] = [r[j], r[i]]; save(r); };
+  const label = (id: string) => (id.startsWith('sport:') ? `${LEAGUES.find(l => l.id === id.slice(6))?.name ?? id} (sports)` : ROW_LABELS[id] ?? id);
+  const addSports = () => openSheet('Add a sports row', () => (
+    <>{LEAGUES.filter(l => !rows.some(r => r.id === `sport:${l.id}`)).map((l, i) => (
+      <SheetItem key={l.id} label={l.name} sub={l.section} autofocus={i === 0} onClick={() => { save([{ id: `sport:${l.id}`, on: true }, ...rows]); closeAllSheets(); toast(`${l.name} added to Home`); }} />
+    ))}</>
+  ));
+  return (
+    <>
+      <h2>Home screen</h2>
+      <p class="muted" style={{ maxWidth: '44rem', marginBottom: '1rem' }}>Choose the rows on Home and their order. A sports row shows live and upcoming matches with their streams; adding one doesn't turn on any notifications.</p>
+      <div class="stack" data-setting="homeRows">
+        {rows.map((r, i) => (
+          <div key={r.id} class="menu-edit" data-nav-group>
+            <span class="menu-edit-name">{label(r.id)}</span>
+            <button class="btn icon" aria-label={`Move ${label(r.id)} up`} disabled={i === 0} onClick={() => move(i, -1)}><Icon name="up" /></button>
+            <button class="btn icon" aria-label={`Move ${label(r.id)} down`} disabled={i === rows.length - 1} onClick={() => move(i, 1)}><Icon name="down" /></button>
+            {r.id.startsWith('sport:')
+              ? <button class="btn danger" onClick={() => save(rows.filter(x => x !== r))}>Remove</button>
+              : <button class={`btn${r.on ? ' primary' : ''}`} onClick={() => save(rows.map(x => (x === r ? { ...x, on: !x.on } : x)))}>{r.on ? 'Shown' : 'Hidden'}</button>}
+          </div>
+        ))}
+      </div>
+      <div class="row" style={{ marginTop: '1.2rem' }}>
+        <button class="btn primary" onClick={addSports}><Icon name="plus" />Add a sports row</button>
+        <button class="btn" onClick={() => save([])}><Icon name="refresh" />Restore the usual rows</button>
       </div>
     </>
   );

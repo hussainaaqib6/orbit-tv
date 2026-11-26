@@ -1,6 +1,10 @@
 // Home: a spotlight at the top, then rows built from what the viewer actually watches.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { catalog, favourites, recentChannels, resume, itemIndex, errors, loaded, loading, loadingSince, reload } from '../sources/library';
+import { catalog, favourites, recentChannels, resume, watched, itemIndex, errors, loaded, loading, loadingSince, reload, settings } from '../sources/library';
+import { homeRows, ROW_LABELS } from './homeRows';
+import { newEpisodeOf, episodeTracks } from '../services/newEpisodes';
+import { LEAGUES, fixturesFor, indexChannels, matchStreams, type Fixture } from '../services/sports';
+import { clock } from '../core/format';
 import type { Channel, Movie, Series } from '../sources/types';
 import { ChannelCard, PosterCard, openItem } from '../ui/cards';
 import { Img } from '../ui/Img';
@@ -11,7 +15,7 @@ import { moviePlayable, episodePlayable } from '../player/playables';
 import { goRoot } from '../nav/router';
 import { minutesLabel } from '../core/format';
 import { cleanTitle } from '../core/names';
-import type { ComponentChildren } from 'preact';
+import { Fragment, type ComponentChildren } from 'preact';
 
 function Shelf({ title, children }: { title: string; children: ComponentChildren }) {
   return (
@@ -39,21 +43,21 @@ export function Home() {
   const spotKey = continueItems[0]?.[1].seriesKey ?? continueItems[0]?.[0] ?? newMovies[0]?.key ?? newSeries[0]?.key;
   const spot = spotKey ? idx.get(spotKey) as Movie | Series | undefined : undefined;
 
-  if (!loaded.value) return <LoadingPlaylists />;
-  const nothing = !c.live.length && !c.movies.length && !c.series.length;
+  const watchedSet = useMemo(() => new Set(Object.keys(watched.value)), [watched.value]);
+  const started = useMemo(() => new Set(Object.entries(resume.value).map(([k, r]) => r.seriesKey ?? k)), [resume.value]);
+  const unwatchedMovies = useMemo(() => newest(c.movies.filter(m => !watchedSet.has(m.key) && !started.has(m.key)), 24), [c.movies, watchedSet, started]);
+  const unwatchedSeries = useMemo(() => newest(c.series.filter(x => !started.has(x.key) && ![...watchedSet].some(k => k.startsWith(`${x.key}:`))), 24), [c.series, watchedSet, started]);
+  const watchedItems = useMemo(() => Object.entries(watched.value).sort((a, b) => b[1] - a[1]).map(([k]) => idx.get(k)).filter((x): x is Movie => x?.kind === 'movie').slice(0, 24), [watched.value, idx]);
+  void episodeTracks.value;
+  const newEps = favVod.filter((x): x is Series => x.kind === 'series' && !!newEpisodeOf(x));
+  const rows = homeRows(settings.value.homeRows).filter(r => r.on);
 
-  return (
-    <div class="screen opaque">
-      {spot ? <Spotlight item={spot} /> : <div style={{ height: '2rem' }} />}
-      {nothing && (
-        <div class="empty">
-          <h2>Your playlists did not return anything</h2>
-          {errors.value.map(e => <p key={e} class="error-text">{e}</p>)}
-          <button class="btn primary" onClick={() => goRoot({ name: 'settings', section: 'playlists' })}>Check playlists</button>
-        </div>
-      )}
-      {continueItems.length > 0 && (
-        <Shelf title="Continue watching">
+  // A plain function (not a component), so rows aren't re-created on every render and focus stays put.
+  const renderRow = (id: string) => {
+    if (id.startsWith('sport:')) return <SportsRow leagueId={id.slice(6)} />;
+    switch (id) {
+      case 'continue': return continueItems.length ? (
+        <Shelf title={ROW_LABELS.continue}>
           {continueItems.map(([key, r]) => (
             <button key={key} class="wide-card" onClick={() => {
               const it = idx.get(r.seriesKey ?? key);
@@ -69,15 +73,35 @@ export function Home() {
             </button>
           ))}
         </Shelf>
+      ) : null;
+      case 'newEpisodes': return newEps.length ? <Shelf title={ROW_LABELS.newEpisodes}>{newEps.map(x => <PosterCard key={x.key} item={x} sub="New episode" />)}</Shelf> : null;
+      case 'favChannels': return favChannels.length ? <Shelf title={ROW_LABELS.favChannels}>{favChannels.map(ch => <ChannelCard key={ch.key} channel={ch} list={favChannels} />)}</Shelf> : null;
+      case 'recentChannels': return recent.length ? <Shelf title={ROW_LABELS.recentChannels}>{recent.map(ch => <ChannelCard key={ch.key} channel={ch} list={recent} />)}</Shelf> : null;
+      case 'favVod': return favVod.length ? <Shelf title={ROW_LABELS.favVod}>{favVod.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'newMovies': return newMovies.length ? <Shelf title={ROW_LABELS.newMovies}>{newMovies.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'newSeries': return newSeries.length ? <Shelf title={ROW_LABELS.newSeries}>{newSeries.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'unwatchedMovies': return unwatchedMovies.length ? <Shelf title={ROW_LABELS.unwatchedMovies}>{unwatchedMovies.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'unwatchedSeries': return unwatchedSeries.length ? <Shelf title={ROW_LABELS.unwatchedSeries}>{unwatchedSeries.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'watched': return watchedItems.length ? <Shelf title={ROW_LABELS.watched}>{watchedItems.map(x => <PosterCard key={x.key} item={x} />)}</Shelf> : null;
+      case 'liveChannels': return !recent.length && !favChannels.length && c.live.length > 0 ? <Shelf title={ROW_LABELS.liveChannels}>{c.live.slice(0, 20).map(ch => <ChannelCard key={ch.key} channel={ch} />)}</Shelf> : null;
+    }
+    return null;
+  };
+
+  if (!loaded.value) return <LoadingPlaylists />;
+  const nothing = !c.live.length && !c.movies.length && !c.series.length;
+
+  return (
+    <div class="screen opaque">
+      {spot ? <Spotlight item={spot} /> : <div style={{ height: '2rem' }} />}
+      {nothing && (
+        <div class="empty">
+          <h2>Your playlists did not return anything</h2>
+          {errors.value.map(e => <p key={e} class="error-text">{e}</p>)}
+          <button class="btn primary" onClick={() => goRoot({ name: 'settings', section: 'playlists' })}>Check playlists</button>
+        </div>
       )}
-      {favChannels.length > 0 && <Shelf title="Favourite channels">{favChannels.map(ch => <ChannelCard key={ch.key} channel={ch} list={favChannels} />)}</Shelf>}
-      {recent.length > 0 && <Shelf title="Recently watched channels">{recent.map(ch => <ChannelCard key={ch.key} channel={ch} list={recent} />)}</Shelf>}
-      {favVod.length > 0 && <Shelf title="Your favourites">{favVod.map(x => <PosterCard key={x.key} item={x} />)}</Shelf>}
-      {newMovies.length > 0 && <Shelf title="New films">{newMovies.map(x => <PosterCard key={x.key} item={x} />)}</Shelf>}
-      {newSeries.length > 0 && <Shelf title="New series">{newSeries.map(x => <PosterCard key={x.key} item={x} />)}</Shelf>}
-      {!recent.length && !favChannels.length && c.live.length > 0 && (
-        <Shelf title="Live TV">{c.live.slice(0, 20).map(ch => <ChannelCard key={ch.key} channel={ch} />)}</Shelf>
-      )}
+      {rows.map(r => <Fragment key={r.id}>{renderRow(r.id)}</Fragment>)}
       <div style={{ height: '2rem' }} />
     </div>
   );
@@ -134,5 +158,40 @@ function Spotlight({ item }: { item: Movie | Series }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/** A competition as a Home row: live matches, then today's and upcoming ones, then today's results. */
+function SportsRow({ leagueId }: { leagueId: string }) {
+  const league = LEAGUES.find(l => l.id === leagueId);
+  const [fx, setFx] = useState<Fixture[] | null>(null);
+  const ix = useMemo(() => indexChannels(catalog.value.live), [catalog.value.live]);
+  useEffect(() => {
+    if (!league) return;
+    let alive = true;
+    const get = () => fixturesFor(league).then(f => { if (alive) setFx(f); }).catch(() => { if (alive) setFx([]); });
+    get();
+    const t = setInterval(get, 60e3);
+    return () => { alive = false; clearInterval(t); };
+  }, [leagueId]);
+  if (!league || !fx) return null;
+  const now = Date.now();
+  const rank = (f: Fixture) => (f.state === 'in' ? 0 : f.state === 'pre' ? 1 : 2);
+  const list = fx.filter(f => f.state === 'in' || (f.state === 'pre' && f.start - now < 3 * 86400e3) || (f.state === 'post' && now - f.start < 12 * 3600e3))
+    .sort((a, b) => rank(a) - rank(b) || a.start - b.start).slice(0, 16);
+  if (!list.length) return null;
+  return (
+    <Shelf title={league.name}>
+      {list.map(f => {
+        const streams = matchStreams(ix, f);
+        return (
+          <button key={f.id} class="prog-card" onClick={() => (streams[0] ? P.playChannel(streams[0], { channels: streams, alternatives: streams.slice(1) }) : goRoot({ name: 'sports' }))}>
+            <span class="when tnum">{f.state === 'in' ? <><span class="dot-live" />{f.detail || 'Live'}</> : f.state === 'post' ? 'Full time' : clock(f.start)}</span>
+            <b class="clamp2">{f.home && f.away ? (f.state === 'pre' ? `${f.home.short} v ${f.away.short}` : `${f.home.short} ${f.home.score}–${f.away.score} ${f.away.short}`) : f.title}</b>
+            <span class={`fx-streams${streams.length ? ' has' : ''}`}>{streams.length ? `${streams.length} stream${streams.length === 1 ? '' : 's'}` : 'No stream yet'}</span>
+          </button>
+        );
+      })}
+    </Shelf>
   );
 }

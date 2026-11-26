@@ -10,6 +10,7 @@ import { push } from '../nav/router';
 import { isFavourite, toggleFavourite, resume, nowNextFor, programmesFor, settings, updateSettings, guide, catalog, reloadGuide } from '../sources/library';
 import { programmesById } from '../sources/guideStore';
 import { isHidden } from '../sources/restrictions';
+import { newEpisodeOf } from '../services/newEpisodes';
 import { progress } from '../sources/epg';
 import { canCatchup } from '../sources/catchup';
 import { cleanTitle, matchKey } from '../core/names';
@@ -39,6 +40,7 @@ export const PosterCard = memo(function PosterCard({ item, sub }: { item: Movie 
       <div class="art">
         <Img src={item.poster} alt={item.name} />
         {rp && rp.duration > 0 && <div class="progress"><i style={{ width: `${(rp.position / rp.duration) * 100}%` }} /></div>}
+        {item.kind === 'series' && newEpisodeOf(item) && <span class="badge-new">New episode</span>}
       </div>
       <div class="t clip">{isHidden(settings.value, item.kind === 'movie' ? 'movie' : 'series', item.group) && <Icon name="hidden" class="hidden-mark" />}{cleanTitle(item.name).title}</div>
       {sub !== undefined ? <div class="s clip">{sub}</div> : item.year ? <div class="s">{item.year}</div> : null}

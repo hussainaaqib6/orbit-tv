@@ -51,7 +51,7 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 | 20 | Last Channel | Implemented | All | **This batch.** Remote Last/Yellow from any screen, side-menu shortcut, player option, swaps between the two most recent. |
 | 21 | Remote button customisation | Implemented | All | **2b.** Colour, Guide, Search, Bookmark and (outside the player) Play/Pause/FF/RW buttons → 14 jobs; works in the player too; shared-job warning; restore defaults. Long-press mapping not yet. |
 | 22 | Advanced side menu | Partially Implemented | All | **2b:** reorder and hide items. Not yet: auto-open on highlight. |
-| 23 | Universal search | Partially Implemented | All | Channels/films/series. Not yet: actors, programmes, teams, rows view. |
+| 23 | Universal search | Implemented | All | **2c:** channels, films, series, TV programmes (native guide search), teams/matches; "Search in" tabs; results as rows. Actors/directors need metadata the playlists don't carry (TMDB per item). |
 | 24 | Enhanced TV Guide navigation | Implemented | All | **2b:** day markers at midnight, Go to day, Now, focus returns to the playing channel and its programme. Recording indicators wait for recording. |
 | 25 | Channel numbering (playlist / favourites first) | Implemented | All | **This batch.** Custom per-channel numbers not yet. |
 | 26 | Visual improvements, reduced-motion mode | Partially Implemented | All | |
@@ -68,10 +68,10 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 |---|---|---|---|---|
 | 3 | Match cards: Classic / Big (team colours) | Implemented | All | **This batch.** Settings → Sports. Live scores refresh every 60 s in place. |
 | 12/13 | Sports and competitions | Partially Implemented | All | ESPN public feed: 19 football competitions, UFC, F1, NFL, NBA, NHL, MLB, NCAA football, Six Nations, ATP/WTA, PGA. Not in that feed: cricket (IPL/PSL/ICC), darts, snooker, winter sports, HSBC Sevens → **needs a licensed sports data provider**. Tables, line-ups, stats not yet. |
-| 14 | Sports Home rows | Not Started | | |
+| 14 | Sports Home rows | Implemented | All | **2c.** Any competition as a Home row: live, upcoming (3 days), today's results, stream counts; OK plays the first stream. Adding a row follows/notifies nothing. |
 | 15 | Sports playlist management | Not Started | | |
 | 16 | My Channels Only | Implemented | All | **This batch.** Per-device (no sync yet). |
-| 17 | Sports stream failover | Partially Implemented | FTV, Desk | Generic failover (item 50) covers matches opened anywhere when the channel has versions; failover between *different* channels showing the same match not yet. |
+| 17 | Sports stream failover | Partially Implemented | FTV, Desk | **2c:** a match opened from Sports or a Home sports row fails over to the match's other streams (after the channel's own versions). From Live TV: channel versions only. |
 | 18 | Intelligent sports channel matching | Partially Implemented | All | Team aliases, competition keywords; **this batch** excludes +1, radio, highlights, replays. EPG-title matching and confidence scores not yet. |
 | 19 | Xtream connection usage | Implemented | All | **This batch.** Shown in playlist settings, sports streams, alternative versions and stream info. "Unknown" when the provider doesn't say. |
 | 64 | Multiview | Not Started | | Needs per-device decoder limits; Fire TV Stick can usually decode only 1–2 HD streams. |
@@ -114,11 +114,11 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 |---|---|---|---|
 | 9 | Enhanced EPG metadata | Implemented | **2b.** Artwork, episode (S/E), episode title, category and age rating stored natively and shown in Live TV, the guide and the player. Cast/release date not yet. |
 | 33 | Grid and list views | Implemented | **2b.** Posters, Detailed list (poster, year, rating, category, plot for series), Compact list; per kind. Landscape cards not yet. |
-| 34 | Custom Home rows | Partially Implemented | Continue watching, new films/series rows exist; not configurable. |
+| 34 | Custom Home rows | Implemented | **2c.** 11 rows (Continue watching, New episodes, Favourites, Recently added, Unwatched films/series, Watched (off by default)…) plus sports rows; reorder, show/hide. Trending/Popular need a data source (TMDB). |
 | 35 | Plex / Jellyfin / Emby | Not Started | Jellyfin/Emby need only the user's server; Plex needs a Plex account sign-in. |
 | 36 | External ratings (IMDb, RT…) | Blocked | TMDB works with a key; IMDb/RT/Metacritic need licensed data (e.g. OMDb key, MDBList). |
-| 38 | New-episode notifications | Not Started | |
-| 39 | Rate This | Not Started | |
+| 38 | New-episode notifications | Implemented | **2c.** Favourite Xtream series checked after each start; a "New episode" badge and Home row stay until that episode is watched to the end. Sync waits for accounts. |
+| 39 | Rate This | Implemented | **2c.** Button in the player's controls in the last 20%; 1–5 stars, change, remove, turn off. Never pauses playback. |
 | 48 | Logo packs | Not Started | |
 
 ## Security and privacy (68)
@@ -146,3 +146,4 @@ Platforms: **FTV** Fire TV / Android TV (the priority), **And** Android phone/ta
 | Crash fix + start-up + Live Sports + branding | #7 | Native guide database, start-up boxes, Live Sports tab, Matrix TV logo |
 | Phase 2a | #8 | Stream recovery + failover, channel versions, Last Channel, finish time, mini-player options, favourites numbering, connection counts, hearts, settings search, Big match cards, My Channels Only, more competitions, sports match exclusions |
 | Phase 2b | #9 | Guide details and navigation, guide preview, hidden categories, parental controls, sorting, list views, remote buttons, side menu, themes |
+| Phase 2c | #10 | Search programmes and teams, customisable Home rows with sports rows, new-episode badges, Rate This, match-stream failover |

@@ -38,3 +38,4 @@
 .no-gap .gstate > * + * { margin-left: 0.35rem; }
 .no-gap .vrow > * + * { margin-left: 1rem; }
 .no-gap .vrow-meta > * + * { margin-top: 0.2rem; }
+.no-gap .prog-card > * + * { margin-top: 0.3rem; }
