@@ -8,7 +8,10 @@ import { uid } from '../core/format';
 import { loadXtream } from './xtream';
 import { parseM3U, looksLikeM3U } from './m3u';
 import { loadStalker, loadStalkerGuide } from './stalker';
-import { emptyGuide, guideIdFor, nowNext, parseXMLTV, wantedFor, type Guide } from './epg';
+import { emptyGuide, guideIdFor, nowNext, parseXMLTV, wantedFor } from './epg';
+import { guide, programmesById, setMemoryGuide, useNativeGuide, memoryEntries, NATIVE_GUIDE } from './guideStore';
+import { OrbitPlayer } from '../core/native';
+import { setPart, resetParts, type Part } from './loadState';
 import type { Catalog, Channel, Item, Movie, Programme, Series, Source } from './types';
 
 /* ------------------------------ settings ------------------------------ */
@@ -108,7 +111,7 @@ export function clearResume(key: string) {
 
 const EMPTY: Catalog = { live: [], movies: [], series: [], epgUrls: [] };
 export const catalog = signal<Catalog>(EMPTY);
-export const guide = signal<Guide>(emptyGuide());
+export { guide, guideTick } from './guideStore';
 export const loading = signal<string>('');
 export const loaded = signal(false);
 
@@ -135,7 +138,7 @@ export const guideLinks = computed(() => {
 export function programmesFor(c: Channel | undefined): Programme[] {
   if (!c) return [];
   const id = guideLinks.value.get(c.key);
-  return (id && guide.value.programmes.get(id)) || [];
+  return id ? programmesById(id) : [];
 }
 export const nowNextFor = (c: Channel | undefined, t = Date.now()) => nowNext(programmesFor(c), t);
 
@@ -178,7 +181,7 @@ async function loadSource(src: Source): Promise<Catalog> {
     case 'xtream': return loadXtream(src, msg => { loading.value = msg; });
     case 'stalker': return loadStalker(src);
     case 'm3u': {
-      const text = src.fromFile ? await cache.get<string>(`m3u:${src.id}`) : await getText(src.url ?? '');
+      const text = src.fromFile ? await cache.get<string>(`m3u:${src.id}`) : await getText(src.url ?? '', { progressId: 'live' });
       if (text == null) throw new Error('This playlist file is missing. Open it again in Settings.');
       if (!looksLikeM3U(text)) throw new Error('That does not look like an M3U playlist.');
       return parseM3U(text, src.id);
@@ -191,27 +194,59 @@ function numberChannels(live: Channel[]) {
   live.forEach((c, i) => { c.number = i + 1; });
 }
 
-interface CacheBlob { at: number; catalog: Catalog; guide?: { at: number; entries: [string, Programme[]][]; names: [string, string | null][]; ids: [string, string][]; displayNames: [string, string][] } }
+interface CacheBlob {
+  at: number;
+  catalog: Catalog;
+  /** Android keeps the guide in its own database and only notes when it was made here. */
+  guide?: { at: number; native?: boolean; entries?: [string, Programme[]][]; names?: [string, string | null][]; ids?: [string, string][]; displayNames?: [string, string][] };
+}
 
-/** Show the cached catalogue straight away; refresh from the network if it is stale or missing. */
+const GUIDE_BACK = 2 * 86400e3, GUIDE_AHEAD = 4 * 86400e3;
+
+function markCatalogParts(c: Catalog, note: string) {
+  setPart('live', { status: 'done', count: c.live.length, note });
+  setPart('movies', { status: 'done', count: c.movies.length, note });
+  setPart('series', { status: 'done', count: c.series.length, note });
+}
+
+/**
+ * Shows the cached catalogue straight away when it is fresh, otherwise loads everything. Resolves
+ * when the channels, films, series and guide are all ready (or have failed), so the start-up screen
+ * can step aside.
+ */
 export async function start(): Promise<void> {
-  const cached = await cache.get<CacheBlob>('catalog');
+  resetParts();
+  let cached: CacheBlob | undefined;
+  try { cached = await cache.get<CacheBlob>('catalog'); } catch { cached = undefined; }
   if (cached?.catalog) {
-    batch(() => {
-      catalog.value = cached.catalog;
-      if (cached.guide) {
-        guide.value = {
-          programmes: new Map(cached.guide.entries), names: new Map(cached.guide.names),
-          ids: new Map(cached.guide.ids), displayNames: new Map(cached.guide.displayNames),
-        };
-      }
-      loaded.value = true;
-    });
+    batch(() => { catalog.value = cached!.catalog; loaded.value = true; });
+    markCatalogParts(cached.catalog, 'Up to date');
   }
-  const stale = !cached || Date.now() - cached.at > settings.value.refreshHours * 3600e3;
-  const guideStale = !cached?.guide || Date.now() - cached.guide.at > 6 * 3600e3;
-  if (stale) await reload();
-  else if (guideStale) await reloadGuide();
+  const fresh = (at: number | undefined) => !!at && Date.now() - at < settings.value.refreshHours * 3600e3;
+  if (!cached?.catalog || !fresh(cached.at)) { await reload(); return; }
+
+  let guideOk = false;
+  if (cached.guide && fresh(cached.guide.at)) {
+    setPart('guide', { status: 'loading' });
+    try {
+      if (cached.guide.native && NATIVE_GUIDE) {
+        const info = await OrbitPlayer.guideInfo();
+        if (info.exists) {
+          const now = Date.now();
+          await useNativeGuide(info.indexPath, new Map(), now - GUIDE_BACK, now + GUIDE_AHEAD);
+          guideOk = true;
+        }
+      } else if (cached.guide.entries) {
+        setMemoryGuide({
+          programmes: new Map(cached.guide.entries), names: new Map(cached.guide.names), ids: new Map(cached.guide.ids),
+          displayNames: new Map(cached.guide.displayNames),
+        });
+        guideOk = true;
+      }
+    } catch (e) { console.warn('[orbit] cached guide unusable', e); }
+    if (guideOk) setPart('guide', { status: 'done', count: guide.value.has.size, note: 'Up to date' });
+  }
+  if (!guideOk) await reloadGuide();
 }
 
 export const errors = signal<string[]>([]);
@@ -238,6 +273,8 @@ async function reloadInner(gen: number): Promise<void> {
   const epgUrls = new Set<string>();
   const errs: string[] = [];
   const list = sources.value.map(s => ({ ...s }));
+  resetParts();
+  for (const p of ['live', 'movies', 'series'] as Part[]) setPart(p, { status: 'loading' });
   for (const src of list) {
     if (!src.enabled) continue;
     loading.value = `Loading ${src.name}…`;
@@ -252,6 +289,7 @@ async function reloadInner(gen: number): Promise<void> {
       src.error = friendlyError(e);
       errs.push(`${src.name}: ${src.error}`);
     }
+    if (gen !== generation) return;
   }
   if (gen !== generation) return; // a newer load took over
   numberChannels(live);
@@ -263,39 +301,83 @@ async function reloadInner(gen: number): Promise<void> {
     errors.value = errs;
     loading.value = '';
   });
+  const failed = errs.length && !live.length && !movies.length && !series.length;
+  if (failed) for (const p of ['live', 'movies', 'series'] as Part[]) setPart(p, { status: 'error', note: errs[0] });
+  else markCatalogParts(next, '');
   saveSources();
-  await cache.set('catalog', { at: Date.now(), catalog: next } satisfies CacheBlob);
+  try { await cache.set('catalog', { at: Date.now(), catalog: next } satisfies CacheBlob); } catch (e) { console.warn('[orbit] could not cache the catalogue', e); }
   await reloadGuide();
 }
 
+let guideGen = 0;
+
 export async function reloadGuide(): Promise<void> {
+  const gen = ++guideGen;
   const c = catalog.value;
-  const g = emptyGuide();
   const wanted = wantedFor(c.live, settings.value.epgMap);
   const urls = [...new Set([...c.epgUrls, ...settings.value.extraEpg.filter(Boolean)])];
   const errs: string[] = [];
+  setPart('guide', { status: 'loading', bytes: 0, total: 0, count: 0, note: '' });
+  if (!urls.length && !sources.value.some(s => s.enabled && s.type === 'stalker')) {
+    setPart('guide', { status: 'done', note: 'This playlist has no guide' });
+    return;
+  }
+  loading.value = 'Loading the TV guide…';
+  const portal = new Map<string, Programme[]>();
   for (const src of sources.value.filter(s => s.enabled && s.type === 'stalker' && !s.error)) {
-    loading.value = 'Loading the TV guide…';
     try {
-      for (const [k, v] of await loadStalkerGuide(src)) g.programmes.set(k, v);
+      for (const [k, v] of await loadStalkerGuide(src)) portal.set(k, v);
     } catch (e) { errs.push(`Guide (${src.name}): ${friendlyError(e)}`); }
   }
-  for (const url of urls) {
-    loading.value = 'Loading the TV guide…';
-    try {
-      parseXMLTV(await getText(url, { timeoutMs: 60000 }), g, { offsetHours: settings.value.epgOffset, wanted });
-    } catch (e) { errs.push(`Guide: ${friendlyError(e)}`); }
+  const now = Date.now();
+  let native = false;
+  try {
+    if (NATIVE_GUIDE && urls.length) {
+      const r = await OrbitPlayer.guideBuild({
+        urls, ids: [...wanted.ids], names: [...wanted.names], offsetHours: settings.value.epgOffset,
+        from: now - GUIDE_BACK, to: now + GUIDE_AHEAD, maxDesc: 400,
+      });
+      if (gen !== guideGen) return;
+      console.info(`[orbit] guide: ${r.programmes} programmes for ${r.channels} channels in ${Math.round((Date.now() - now) / 1000)}s`, r.errors.join('; '));
+      r.errors.forEach(e => errs.push(`Guide: ${e}`));
+      await useNativeGuide(r.indexPath, portal, now - GUIDE_BACK, now + GUIDE_AHEAD);
+      native = true;
+    } else {
+      const g = emptyGuide();
+      for (const url of urls) {
+        try {
+          parseXMLTV(await getText(url, { timeoutMs: 60000 }), g, { offsetHours: settings.value.epgOffset, wanted, now });
+        } catch (e) { errs.push(`Guide: ${friendlyError(e)}`); }
+      }
+      if (gen !== guideGen) return;
+      setMemoryGuide(g, portal);
+    }
+  } catch (e) {
+    console.warn('[orbit] guide failed', e);
+    errs.push(`Guide: ${friendlyError(e)}`);
   }
+  if (gen !== guideGen) return;
+  const matched = guide.value.has.size;
+  if (errs.length) console.warn(`[orbit] guide problems: ${errs.join(' | ')}`);
+  setPart('guide', matched
+    ? { status: 'done', count: matched, note: '' }
+    : { status: errs.length ? 'error' : 'done', count: 0, note: errs.length ? 'Could not load the guide' : 'No programmes matched your channels' });
   batch(() => {
-    guide.value = g;
     loading.value = '';
     if (errs.length) errors.value = [...errors.value, ...errs];
   });
-  const blob = await cache.get<CacheBlob>('catalog');
-  if (blob) {
-    blob.guide = { at: Date.now(), entries: [...g.programmes], names: [...g.names], ids: [...g.ids], displayNames: [...g.displayNames] };
-    await cache.set('catalog', blob);
-  }
+  // A guide that failed is not saved, so the next start tries again.
+  if (!matched && errs.length) return;
+  try {
+    const blob = await cache.get<CacheBlob>('catalog');
+    if (blob) {
+      const g = guide.value;
+      blob.guide = native
+        ? { at: Date.now(), native: true }
+        : { at: Date.now(), entries: memoryEntries(), names: [...g.names], ids: [...g.ids], displayNames: [...g.displayNames] };
+      await cache.set('catalog', blob);
+    }
+  } catch (e) { console.warn('[orbit] could not cache the guide', e); }
 }
 
 export const sourceById = (id: string) => sources.value.find(s => s.id === id);

@@ -1,11 +1,10 @@
 // Icons: the Lucide set (lucide.dev), mapped to the names Orbit uses.
 import type { JSX } from 'preact';
-import { BRAND } from '../core/brand';
 import {
   House, Search, CalendarRange, Tv, Clapperboard, Layers, Star, Settings, Play, Pause, RotateCcw, RotateCw,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, List, ListVideo, Captions, Volume2, VolumeX, Proportions,
   Gauge, Ellipsis, X, Info, RefreshCw, Trash2, Pencil, Check, FileText, History, Power, Plus, Minus, SkipForward,
-  SkipBack, ArrowUpDown, MonitorPlay, Clock3,
+  SkipBack, ArrowUpDown, MonitorPlay, Clock3, Trophy,
 } from 'lucide-preact';
 
 const MAP = {
@@ -14,7 +13,7 @@ const MAP = {
   cc: Captions, audio: Volume2, mute: VolumeX, aspect: Proportions, speed: Gauge, more: Ellipsis, close: X,
   left: ChevronLeft, right: ChevronRight, up: ChevronUp, down: ChevronDown, plus: Plus, minus: Minus,
   refresh: RefreshCw, trash: Trash2, edit: Pencil, check: Check, episodes: ListVideo, tv: MonitorPlay, file: FileText,
-  info: Info, history: History, next: SkipForward, prev: SkipBack, power: Power, sort: ArrowUpDown, clock: Clock3,
+  info: Info, history: History, next: SkipForward, prev: SkipBack, power: Power, sort: ArrowUpDown, clock: Clock3, sports: Trophy,
 } as const;
 
 export type IconName = keyof typeof MAP;
@@ -25,5 +24,3 @@ export function Icon({ name, class: cls, style }: { name: IconName; class?: stri
   return <C class={cls} style={style} aria-hidden="true" strokeWidth={solid ? 0 : 2} fill={solid ? 'currentColor' : 'none'} absoluteStrokeWidth={false} />;
 }
 
-/** The brand mark: the wolf from the Matrix TV Streams logo. */
-export const BrandMark = ({ class: cls }: { class?: string }) => <img class={`brand-mark ${cls ?? ''}`} src={BRAND.wolf} alt="" />;

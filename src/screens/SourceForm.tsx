@@ -1,4 +1,5 @@
 // Adding or editing a playlist: Xtream Codes login, M3U link or file, or MAC portal.
+import { withStartup } from '../sources/loadState';
 import { useState } from 'preact/hooks';
 import { addSource, updateSource, reload, saveM3UFile, sources } from '../sources/library';
 import type { Source, SourceType } from '../sources/types';
@@ -77,7 +78,7 @@ export function SourceForm({ existing, onDone, kind: startKind }: { existing?: S
     if (existing) { updateSource(existing.id, { ...data, error: '' }); id = existing.id; }
     else id = addSource(data).id;
     if (kind === 'file' && fileText) await saveM3UFile(id, fileText.text);
-    await reload();
+    await withStartup(() => reload(true));
     setBusy(false);
     const s = sources.value.find(x => x.id === id);
     if (s?.error) { setError(s.error); return; }

@@ -7,7 +7,8 @@ import { Icon } from './icons';
 import { openSheet, replaceSheet, closeAllSheets, SheetItem, toast } from './overlays';
 import { onAction } from '../nav/keys';
 import { push } from '../nav/router';
-import { isFavourite, toggleFavourite, resume, nowNextFor, programmesFor, settings, updateSettings, guide, catalog } from '../sources/library';
+import { isFavourite, toggleFavourite, resume, nowNextFor, programmesFor, settings, updateSettings, guide, catalog, reloadGuide } from '../sources/library';
+import { programmesById } from '../sources/guideStore';
 import { progress } from '../sources/epg';
 import { canCatchup } from '../sources/catchup';
 import { cleanTitle, matchKey } from '../core/names';
@@ -95,20 +96,24 @@ function GuideMatch({ channel }: { channel: Channel }) {
   const g = guide.value;
   const key = matchKey(channel.name);
   const short = key.slice(0, Math.max(3, Math.min(6, key.length)));
-  const options = [...g.displayNames].filter(([id, name]) => g.programmes.has(id) && (matchKey(name).includes(short) || matchKey(id).includes(short))).slice(0, 60);
+  const options = [...g.displayNames].filter(([id, name]) => matchKey(name).includes(short) || matchKey(id).includes(short))
+    .sort((a, b) => +g.has.has(b[0]) - +g.has.has(a[0])).slice(0, 60);
   const chosen = settings.value.epgMap[channel.key];
   const set = (id: string | null) => {
     const map = { ...settings.value.epgMap };
     if (id) map[channel.key] = id; else delete map[channel.key];
     updateSettings({ epgMap: map });
-    toast(id ? 'Guide channel saved' : 'Back to automatic matching');
+    // The guide only keeps channels in the playlist; a newly chosen one needs the guide read again.
+    if (id && !g.has.has(id)) { reloadGuide(); toast('Guide channel saved. Loading its programmes…'); }
+    else toast(id ? 'Guide channel saved' : 'Back to automatic matching');
     closeAllSheets();
   };
   return (
     <>
       <SheetItem label="Automatic" checked={!chosen} autofocus onClick={() => set(null)} />
       {options.map(([id, name]) => {
-        const { now } = (() => { const l = g.programmes.get(id) ?? []; const t = Date.now(); const p = l.find(x => x.start <= t && x.stop > t); return { now: p }; })();
+        const t = Date.now();
+        const now = g.has.has(id) ? programmesById(id).find(x => x.start <= t && x.stop > t) : undefined;
         return <SheetItem key={id} label={name} sub={now ? `Now: ${now.title}` : id} checked={chosen === id} onClick={() => set(id)} />;
       })}
       {!options.length && <p class="hint" style={{ padding: '0.5rem 0.9rem' }}>No guide channels with a similar name. Add another guide link in Settings → TV guide.</p>}

@@ -1,7 +1,6 @@
 /* Fallbacks for older TV WebViews (Chromium 80–83, as on some Fire TV and Android TV devices),
    which lay out flex rows but ignore `gap` there. main.tsx adds .no-gap to <html> when needed. */
 .no-gap .rail-panel > * + * { margin-top: 0.25rem; }
-.no-gap .rail-brand > * + * { margin-left: 0.8rem; }
 .no-gap .rail-item > * + * { margin-left: 1rem; }
 .no-gap .btn > * + *, .no-gap .chip > * + *, .no-gap .pbtn > * + * { margin-left: 0.5rem; }
 .no-gap .row > *, .no-gap .choice > * { margin: 0 0.6rem 0.6rem 0; }
@@ -20,6 +19,10 @@
 .no-gap .status-pill > * + * { margin-left: 0.6rem; }
 .no-gap .p-top > * + * { margin-left: 1.2rem; }
 .no-gap .p-buttons > * { margin: 0 0.6rem 0.4rem 0; }
-.no-gap .welcome-brand > * + * { margin-left: 0.6rem; }
 .no-gap .option > * + * { margin-left: 1rem; }
 .no-gap .pair-status > * + * { margin-left: 0.5rem; }
+.no-gap .boot-row > * + * { margin-left: 1.4rem; }
+.no-gap .fx > * + *, .no-gap .srow > * + * { margin-left: 0.8rem; }
+.no-gap .fx-team > * + * { margin-left: 0.55rem; }
+.no-gap .fx-teams > * + * { margin-top: 0.3rem; }
+.no-gap .fxd-meta > * + * { margin-left: 0.9rem; }

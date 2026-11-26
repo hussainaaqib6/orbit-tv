@@ -2,6 +2,7 @@
 import { request } from '../core/http';
 import { num } from '../core/format';
 import { cleanTitle } from '../core/names';
+import { setPart } from './loadState';
 import type { Catalog, Episode, Movie, Series, Source } from './types';
 
 export function xtBase(server: string): string {
@@ -12,8 +13,8 @@ export function xtBase(server: string): string {
 
 const creds = (src: Source) => ({ u: encodeURIComponent(src.user ?? ''), p: encodeURIComponent(src.pass ?? '') });
 const query = (src: Source) => `username=${encodeURIComponent(src.user ?? '')}&password=${encodeURIComponent(src.pass ?? '')}`;
-const api = <T>(src: Source, action: string, extra = '') =>
-  request<T>(`${xtBase(src.server ?? '')}/player_api.php?${query(src)}${action ? '&action=' + action : ''}${extra}`);
+const api = <T>(src: Source, action: string, extra = '', progressId?: string) =>
+  request<T>(`${xtBase(src.server ?? '')}/player_api.php?${query(src)}${action ? '&action=' + action : ''}${extra}`, { progressId });
 
 interface XtInfo {
   user_info?: { auth?: number | string; status?: string; exp_date?: string | null; allowed_output_formats?: string[] };
@@ -43,18 +44,21 @@ export async function loadXtream(src: Source, progress: (msg: string) => void = 
   const { u, p } = creds(src);
   // One list at a time: film lists can be tens of megabytes, and a TV stick has little memory to spare.
   const failed: string[] = [];
-  const list = <T>(action: string, what: string) => api<T[]>(src, action)
+  const list = <T>(action: string, what: string, part?: string) => api<T[]>(src, action, '', part)
     .then(x => (Array.isArray(x) ? x : []))
     .catch(() => { failed.push(what); return [] as T[]; });
   progress(`Loading channels from ${src.name}…`);
   const lc = await list<XtCategory>('get_live_categories', 'channel categories');
-  const ls = await list<XtLive>('get_live_streams', 'channels');
+  const ls = await list<XtLive>('get_live_streams', 'channels', 'live');
+  setPart('live', { status: 'done', count: ls.length });
   progress(`Loading films from ${src.name}…`);
   const vc = await list<XtCategory>('get_vod_categories', 'film categories');
-  const vs = await list<XtVod>('get_vod_streams', 'films');
+  const vs = await list<XtVod>('get_vod_streams', 'films', 'movies');
+  setPart('movies', { status: 'done', count: vs.length });
   progress(`Loading series from ${src.name}…`);
   const sc = await list<XtCategory>('get_series_categories', 'series categories');
-  const ss = await list<XtSeries>('get_series', 'series');
+  const ss = await list<XtSeries>('get_series', 'series', 'series');
+  setPart('series', { status: 'done', count: ss.length });
   progress(`Sorting ${(ls.length + vs.length + ss.length).toLocaleString()} items…`);
   if (!ls.length && !vs.length && !ss.length && failed.length) throw new Error(`Signed in, but the server did not send the ${failed.join(', ')}.`);
   const names = (cats: XtCategory[]) => new Map(cats.map(c => [String(c.category_id), c.category_name]));

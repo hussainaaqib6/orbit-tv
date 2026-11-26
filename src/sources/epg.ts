@@ -13,6 +13,15 @@ export interface Guide {
   displayNames: Map<string, string>;
 }
 
+/** What screens need to match channels to a guide: a parsed Guide, or the Android database's index. */
+export interface GuideIndex {
+  names: Map<string, string | null>;
+  ids: Map<string, string>;
+  displayNames: Map<string, string>;
+  /** Guide ids that have programmes. */
+  has: Set<string>;
+}
+
 export const emptyGuide = (): Guide => ({ programmes: new Map(), names: new Map(), ids: new Map(), displayNames: new Map() });
 
 const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
@@ -47,13 +56,16 @@ export interface ParseOptions {
   /** Only keep these guide ids / display-name keys (saves a lot of memory on TV sticks). */
   wanted?: { ids: Set<string>; names: Set<string> };
   now?: number;
+  /** Keep programmes between these times (default: a day and a half back to four days ahead). */
+  from?: number;
+  to?: number;
 }
 
 /** Adds the programmes in `text` to `guide`. Returns the number of programmes kept. */
 export function parseXMLTV(text: string, guide: Guide, o: ParseOptions = {}): number {
   const off = (o.offsetHours || 0) * 3600e3;
   const now = o.now ?? Date.now();
-  const min = now - 7 * 86400e3, max = now + 7 * 86400e3;
+  const min = o.from ?? now - 36 * 3600e3, max = o.to ?? now + 4 * 86400e3;
   const keep = new Set<string>();
 
   for (const m of text.matchAll(/<channel\s+id="([^"]*)"[^>]*>([\s\S]*?)<\/channel>/g)) {
@@ -112,13 +124,14 @@ export function wantedFor(channels: Channel[], manual: Record<string, string>) {
  * Which guide id a channel uses: a manual choice first, then its tvg-id, then an unambiguous name match.
  * Ambiguous names are left unmatched rather than guessed.
  */
-export function guideIdFor(c: Channel, guide: Guide, manual: Record<string, string>): string | null {
+export function guideIdFor(c: Channel, guide: Guide | GuideIndex, manual: Record<string, string>): string | null {
+  const has = (id: string) => ('has' in guide ? guide.has.has(id) : guide.programmes.has(id));
   const chosen = manual[c.key];
-  if (chosen) return guide.programmes.has(chosen) ? chosen : null;
+  if (chosen) return has(chosen) ? chosen : null;
   let id: string | null | undefined = null;
-  if (c.epgId) id = guide.programmes.has(c.epgId) ? c.epgId : guide.ids.get(c.epgId.toLowerCase());
+  if (c.epgId) id = has(c.epgId) ? c.epgId : guide.ids.get(c.epgId.toLowerCase());
   if (!id) id = guide.names.get(matchKey(c.name)) ?? (c.epgId ? guide.names.get(matchKey(c.epgId)) : null);
-  return id && guide.programmes.has(id) ? id : null;
+  return id && has(id) ? id : null;
 }
 
 /** Index of the programme on at `t`, or of the next one if nothing is on. -1 if none. */
