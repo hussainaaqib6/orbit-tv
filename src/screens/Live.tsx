@@ -16,6 +16,7 @@ import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
 import { VirtualGrid } from '../ui/VirtualGrid';
 import { Img } from '../ui/Img';
+import { Wordmark } from '../ui/brand';
 import { Icon } from '../ui/icons';
 import { openItemMenu } from '../ui/cards';
 import { onAction } from '../nav/keys';
@@ -310,28 +311,30 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
   );
   return (
     <div class="live-browse">
-      <aside class="cats" data-nav-group="cats" data-nav-scope="right" ref={cats}>
-        <div class="cats-head lb-clock">
-          <b class="tnum">{clock(now)}</b>
-          <span>{new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+      <header class="lb-bar">
+        <div class="gx-clock"><b class="tnum">{clock(now)}</b><span>{new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+        <Wordmark class="gx-logo" player={false} />
+        <div class="lb-bar-right">
+          <div class="lb-cat"><b class="clip">{groupLabel}</b><span>{list.length.toLocaleString()} channels · Categories</span></div>
+          <button class="gx-iconbtn" onClick={onSort} aria-label={`Order: ${sortLabel}`} title={sortLabel}><Icon name="sort" /></button>
+          <button class="gx-iconbtn" onClick={() => goRoot({ name: 'search' })} aria-label="Search"><Icon name="search" /></button>
         </div>
-        <div class="cats-list">
-          {favs > 0 && cat(FAV, 'Favourites', favs)}
-          {recent > 0 && cat(RECENT, 'Recently watched', recent)}
-          {cat(ALL, 'All channels', all)}
-          {groups.map(g => cat(g.name, g.name, g.count))}
-        </div>
-      </aside>
-      <section class="lb-main" ref={grid}>
-        <div class="vod-head lb-head">
-          <h2 class="clip">{groupLabel}</h2><span class="count">{list.length}</span><span style={{ flex: 1 }} />
-          <button class="chip small" onClick={onSort} aria-label="Change order"><Icon name="sort" />{sortLabel}</button>
-          <button class="chip small" onClick={() => goRoot({ name: 'search' })} aria-label="Search"><Icon name="search" /></button>
-        </div>
-        {list.length
-          ? <VirtualGrid items={list} minRem={8.6} ratio={0.78} extraRem={2.7} keyOf={c => c.key} render={c => <ChannelTile c={c} onPick={onPick} />} />
-          : <div class="empty"><p>No channels in this category.</p></div>}
-      </section>
+      </header>
+      <div class="lb-body">
+        <aside class="cats" data-nav-group="cats" data-nav-scope="right up" ref={cats}>
+          <div class="cats-list">
+            {favs > 0 && cat(FAV, 'Favourites', favs)}
+            {recent > 0 && cat(RECENT, 'Recently watched', recent)}
+            {cat(ALL, 'All channels', all)}
+            {groups.map(g => cat(g.name, g.name, g.count))}
+          </div>
+        </aside>
+        <section class="lb-main" ref={grid}>
+          {list.length
+            ? <VirtualGrid items={list} minRem={8.6} ratio={0.78} extraRem={2.7} keyOf={c => c.key} render={c => <ChannelTile c={c} onPick={onPick} />} />
+            : <div class="empty"><p>No channels in this category.</p></div>}
+        </section>
+      </div>
     </div>
   );
 }

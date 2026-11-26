@@ -121,7 +121,7 @@ export function SourceForm({ existing, onDone, kind: startKind }: { existing?: S
       <Field label="Extra guide link (optional)" value={f.epgUrl} onInput={set('epgUrl')} type="url" placeholder="http://example.com/epg.xml.gz" hint="Only needed if your provider's guide is missing." />
       {error && <p class="error-text" role="alert" style={{ marginBottom: '1rem' }}>{error}</p>}
       <div class="row">
-        <button type="submit" class="btn primary" disabled={busy}>{busy ? <><span class="spinner" />Loading playlist…</> : existing ? 'Save changes' : 'Add playlist'}</button>
+        <button type="submit" class="btn primary" disabled={busy}>{busy ? <><span class="spinner" />Signing in…</> : existing ? 'Save changes' : 'Sign In'}</button>
         {onDone && <button type="button" class="btn quiet" onClick={onDone}>Cancel</button>}
       </div>
     </form>

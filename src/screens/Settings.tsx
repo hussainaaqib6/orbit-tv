@@ -17,12 +17,35 @@ import { requirePin, setNewPin } from '../ui/pin';
 import { RemoteButtons, Themes } from './SettingsMore';
 import { push } from '../nav/router';
 
+/** Sections, in a body each. */
 const SECTIONS: { id: string; label: string; icon: IconName }[] = [
-  { id: 'playlists', label: 'Playlists', icon: 'list' }, { id: 'player', label: 'Player', icon: 'play' }, { id: 'appearance', label: 'Appearance', icon: 'sliders' },
-  { id: 'subtitles', label: 'Subtitles', icon: 'cc' }, { id: 'guide', label: 'TV guide', icon: 'guide' }, { id: 'sports', label: 'Sports', icon: 'sports' },
-  { id: 'categories', label: 'Categories', icon: 'hidden' }, { id: 'parental', label: 'Parental', icon: 'lock' }, { id: 'remote', label: 'Remote buttons', icon: 'remote' },
-  { id: 'themes', label: 'Colours & theme', icon: 'palette' }, { id: 'general', label: 'General', icon: 'settings' }, { id: 'services', label: 'Artwork and info', icon: 'image' },
+  { id: 'playlists', label: 'Account', icon: 'account' }, { id: 'player', label: 'Player', icon: 'play' }, { id: 'appearance', label: 'Appearance', icon: 'sliders' },
+  { id: 'subtitles', label: 'Subtitles', icon: 'cc' }, { id: 'guide', label: 'TV Guide', icon: 'guide' }, { id: 'sports', label: 'Sports', icon: 'sports' },
+  { id: 'categories', label: 'Categories', icon: 'hidden' }, { id: 'parental', label: 'Parental', icon: 'lock' }, { id: 'remote', label: 'Remote Control', icon: 'remote' },
+  { id: 'themes', label: 'Colours & Theme', icon: 'palette' }, { id: 'general', label: 'Other Settings', icon: 'settings' }, { id: 'services', label: 'Artwork & Info', icon: 'image' },
   { id: 'about', label: 'About', icon: 'info' },
+];
+/**
+ * The settings grid, in GalaxyXC's order and names. A card opens a section, jumps straight to one
+ * setting in it (Video Size, Stream Type), or does something (Update Contents).
+ */
+const GRID: { label: string; icon: IconName; section?: string; jump?: string; run?: () => void }[] = [
+  { label: 'Account', icon: 'account', section: 'playlists' },
+  { label: 'Video Size', icon: 'aspect', section: 'player', jump: 'aspectLive' },
+  { label: 'Player', icon: 'play', section: 'player' },
+  { label: 'Stream Type', icon: 'tv', section: 'player', jump: 'liveFormat' },
+  { label: 'Update Contents', icon: 'refresh', run: () => reload(true) },
+  { label: 'Parental', icon: 'lock', section: 'parental' },
+  { label: 'Subtitles', icon: 'cc', section: 'subtitles' },
+  { label: 'TV Guide', icon: 'guide', section: 'guide' },
+  { label: 'Remote Control', icon: 'remote', section: 'remote' },
+  { label: 'Categories', icon: 'hidden', section: 'categories' },
+  { label: 'Appearance', icon: 'sliders', section: 'appearance' },
+  { label: 'Colours & Theme', icon: 'palette', section: 'themes' },
+  { label: 'Sports', icon: 'sports', section: 'sports' },
+  { label: 'Artwork & Info', icon: 'image', section: 'services' },
+  { label: 'Other Settings', icon: 'settings', section: 'general' },
+  { label: 'About', icon: 'info', section: 'about' },
 ];
 
 /**
@@ -449,7 +472,7 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
     <div class="screen opaque">
       <div class="settings-home">
         <div class="settings-top">
-          <h1>Settings</h1>
+          <h1 class="gx-spaced">S E T T I N G S</h1>
           <div class="settings-search">
             <Icon name="search" />
             <input class="input" value={q} placeholder="Search settings" aria-label="Search settings" spellcheck={false} autocomplete="off"
@@ -466,8 +489,9 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
           </div>
         ) : (
           <div class="settings-grid" data-nav-group>
-            {SECTIONS.map((x, i) => (
-              <button key={x.id} class="set-tile" data-autofocus={i === 0 || undefined} onClick={() => push({ name: 'settings', section: x.id })}>
+            {GRID.map((x, i) => (
+              <button key={x.label} class="set-tile" data-autofocus={i === 0 || undefined}
+                onClick={() => (x.run ? (x.run(), toast('Updating contents…')) : push({ name: 'settings', section: x.section!, highlight: x.jump }))}>
                 <Icon name={x.icon} /><span>{x.label}</span>
               </button>
             ))}

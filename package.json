@@ -1,8 +1,8 @@
 {
   "name": "orbit-tv",
-  "productName": "Matrix TV",
+  "productName": "Matrix 8K Player",
   "version": "2.0.0",
-  "description": "Matrix TV: an IPTV player for Fire TV, Android, iPhone/iPad and desktop. Bring your own Xtream Codes, M3U or MAC portal playlist.",
+  "description": "Matrix 8K Player: an IPTV player for Fire TV, Android, iPhone/iPad and desktop. Bring your own Xtream Codes, M3U or MAC portal playlist.",
   "main": "desktop/main.js",
   "license": "MIT",
   "type": "commonjs",
@@ -55,7 +55,7 @@
   },
   "build": {
     "appId": "tv.orbit.player",
-    "productName": "Matrix TV",
+    "productName": "Matrix 8K Player",
     "files": [
       "desktop/**/*",
       "dist/**/*"

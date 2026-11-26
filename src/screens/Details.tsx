@@ -69,7 +69,7 @@ export function MovieDetail({ itemKey }: { itemKey: string }) {
             <Facts year={m.year} extra={extra} tmdb={tmdb} rating={m.rating} group={m.group} />
             {plot && <p class="plot">{plot}</p>}
             {cast && <p class="cast">With {cast}</p>}
-            <div class="row">
+            <div class="row gx-actions" data-nav-group>
               <button class="btn primary" data-autofocus onClick={() => P.play(moviePlayable(m))}>
                 <Icon name="play" />{r ? `Resume from ${minutesLabel(r.position / 60) || 'the start'}` : 'Play'}
               </button>

@@ -2,7 +2,7 @@
 // (OrbitPlayerPlugin.startPairing), so it has to be one self-contained HTML string.
 // The TV swaps <!--STATE--> for "form" or "sent".
 export const PHONE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Add a playlist to Matrix TV</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Add a playlist to Matrix 8K Player</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f6ff;
 background:radial-gradient(40rem 30rem at 50% 0%,#5a0a16,transparent 70%),#0b0709;min-height:100vh;padding:28px 18px}
@@ -19,7 +19,7 @@ button{margin-top:22px;width:100%;padding:15px;border:0;border-radius:99px;backg
 .sent .done{display:block}.sent form{display:none}
 </style></head><body class="<!--STATE-->"><main>
 <form method="post">
-<h1>Matrix TV</h1><p style="margin:-2px 0 8px;color:#ff4057;font-weight:700">Add a playlist</p><p>Type the details from your TV provider. They go straight to your TV.</p>
+<h1>Matrix 8K Player</h1><p style="margin:-2px 0 8px;color:#ff4057;font-weight:700">Add a playlist</p><p>Type the details from your TV provider. They go straight to your TV.</p>
 <div class="tabs">
 <label><input type="radio" name="type" value="xtream" checked><span>Xtream Codes</span></label>
 <label><input type="radio" name="type" value="m3u"><span>M3U link</span></label>

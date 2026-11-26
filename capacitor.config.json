@@ -1,6 +1,6 @@
 {
   "appId": "tv.orbit.player",
-  "appName": "Matrix TV",
+  "appName": "Matrix 8K Player",
   "webDir": "dist",
   "server": {
     "androidScheme": "http",
@@ -11,10 +11,10 @@
   },
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#0b0709"
+    "backgroundColor": "#0e0e0f"
   },
   "plugins": {
     "CapacitorHttp": { "enabled": false },
-    "StatusBar": { "style": "DARK", "backgroundColor": "#0b0709", "overlaysWebView": false }
+    "StatusBar": { "style": "DARK", "backgroundColor": "#0e0e0f", "overlaysWebView": false }
   }
 }

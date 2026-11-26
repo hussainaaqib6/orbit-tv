@@ -1,9 +1,12 @@
-// Home: the hub, laid out like the viewer's earlier Galaxy (XCIPTV-style) app: square tiles with a
-// coloured outline, an icon and an upper-case name. Big tiles for Live TV, Movies and Series, a row
-// of smaller ones under them, the logo and clock at the top and the account expiry at the bottom.
+// Home: the hub, laid out like GalaxyXC's home (docs/GALAXYXC_REFERENCE.md): time and date top left,
+// logo top centre, small icon buttons top right; four big square tiles across the middle (Live TV,
+// TV Guide, VOD, Series); a footer with an accent line along its top, buttons at both ends and the
+// account expiry in the middle. Tiles are outlined squares with an icon and an upper-case name.
 // Every screen opens from here, and Back from any screen comes back here. Deliberately light: no
 // artwork to fetch and no rows to build, so it appears instantly.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { onAction } from '../nav/keys';
+import { focusEl } from '../nav/focus';
 import { catalog, favourites, recentChannels, errors, loaded, loading, loadingSince, reload, settings, sources } from '../sources/library';
 import { Icon, type IconName } from '../ui/icons';
 import { Wordmark } from '../ui/brand';
@@ -26,6 +29,33 @@ function Tile({ icon, label, sub, onClick, big, auto }: { icon: IconName; label:
 export function Home() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(t); }, []);
+  // Up/Down always move between the three rows (top buttons, big tiles, footer), never diagonally
+  // across them, and land on the tile you last had in that row (like GalaxyXC).
+  const root = useRef<HTMLDivElement>(null);
+  const lastIn = useRef<Record<string, HTMLElement | null>>({});
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const rows = ['.gx-tools', '.gx-big', '.gx-foot'];
+    const onIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement;
+      for (const r of rows) if (t.closest(r)) lastIn.current[r] = t;
+    };
+    el.addEventListener('focusin', onIn);
+    const off = onAction(el, a => {
+      if (a !== 'up' && a !== 'down') return;
+      const cur = document.activeElement as HTMLElement | null;
+      const i = rows.findIndex(r => cur?.closest(r));
+      if (i < 0) return;
+      for (let j = i + (a === 'down' ? 1 : -1); j >= 0 && j < rows.length; j += a === 'down' ? 1 : -1) {
+        const row = el.querySelector<HTMLElement>(rows[j]);
+        const target = (lastIn.current[rows[j]]?.isConnected && lastIn.current[rows[j]]) || row?.querySelector<HTMLElement>('button');
+        if (target) { focusEl(target); return true; }
+      }
+      return true;
+    });
+    return () => { el.removeEventListener('focusin', onIn); off(); };
+  }, [loaded.value]);
 
   if (!loaded.value) return <LoadingPlaylists />;
   const c = catalog.value;
@@ -37,10 +67,14 @@ export function Home() {
   const go = (to: Route) => () => goRoot(to);
 
   return (
-    <div class="screen dash">
-      <header class="dash-top">
-        <Wordmark class="dash-mark" />
-        <div class="dash-clock"><b class="tnum">{clock(now)}</b><span>{date}</span></div>
+    <div class="screen dash" ref={root}>
+      <header class="gx-top">
+        <div class="gx-clock"><b class="tnum">{clock(now)}</b><span>{date}</span></div>
+        <Wordmark class="gx-logo" />
+        <div class="gx-tools" data-nav-group>
+          <IconBtn icon="search" label="Search" onClick={go({ name: 'search' })} />
+          <IconBtn icon="refresh" label="Update contents" onClick={() => reload(true)} />
+        </div>
       </header>
 
       {nothing ? (
@@ -50,32 +84,37 @@ export function Home() {
           <button class="btn primary" data-autofocus onClick={() => goRoot({ name: 'settings', section: 'playlists' })}>Check playlists</button>
         </div>
       ) : (
-        <div class="gx-big" data-nav-group data-nav-scope="down">
+        <div class="gx-big" data-nav-group>
           <Tile big icon="live" label="Live TV" sub={count(c.live.length, 'channel', 'channels')} onClick={go({ name: 'live' })} auto />
+          <Tile big icon="guide" label="TV Guide" sub="What's on" onClick={go({ name: 'guide' })} />
           <Tile big icon="movies" label="VOD" sub={count(c.movies.length, 'film', 'films')} onClick={go({ name: 'movies' })} />
           <Tile big icon="series" label="Series" sub={count(c.series.length, 'series', 'series')} onClick={go({ name: 'series' })} />
         </div>
       )}
 
-      <div class="gx-small" data-nav-group data-nav-scope="up">
-        <Tile icon="guide" label="TV Guide" onClick={go({ name: 'guide' })} />
-        <Tile icon="history" label="Catch Up" onClick={go({ name: 'guide' })} />
-        {recentChannels.value.length > 0 && <Tile icon="clock" label="Recent" onClick={go({ name: 'live', group: '\u0001recent' })} />}
-        {favourites.value.length > 0 && <Tile icon="heart" label="Favourites" onClick={go({ name: 'favourites' })} />}
-        {last && <Tile icon="last" label="Last Channel" onClick={() => lastChannel()} />}
-        <Tile icon="sports" label="Sports" onClick={go({ name: 'sports' })} />
-        <Tile icon="search" label="Search" onClick={go({ name: 'search' })} />
-        <Tile icon="settings" label="Settings" onClick={go({ name: 'settings' })} />
-        <Tile icon="refresh" label="Reload" onClick={() => reload(true)} />
-        <Tile icon="account" label="Account" onClick={go({ name: 'settings', section: 'playlists' })} />
-      </div>
-
-      <footer class="dash-foot tnum">
-        {expires ? <span>Expiration: {new Date(expires).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}</span> : null}
-        {src ? <span>Logged in as: {src.user || src.name}</span> : null}
+      <footer class="gx-foot" data-nav-group>
+        <div class="gx-foot-side">
+          <Tile icon="account" label="Account" onClick={go({ name: 'settings', section: 'playlists' })} />
+          <Tile icon="history" label="Catch Up" onClick={go({ name: 'guide' })} />
+          <Tile icon="sports" label="Sports" onClick={go({ name: 'sports' })} />
+        </div>
+        <div class="gx-expire tnum">
+          {expires ? <b>Expiration: {new Date(expires).toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })}</b> : null}
+          {src ? <span>Logged in as: {src.user || src.name}</span> : null}
+        </div>
+        <div class="gx-foot-side">
+          {favourites.value.length > 0 && <Tile icon="heart" label="Favourites" onClick={go({ name: 'favourites' })} />}
+          {recentChannels.value.length > 0 && <Tile icon="clock" label="Recent" onClick={go({ name: 'live', group: '\u0001recent' })} />}
+          {last && <Tile icon="last" label="Last Ch." onClick={() => lastChannel()} />}
+          <Tile icon="settings" label="Settings" onClick={go({ name: 'settings' })} />
+        </div>
       </footer>
     </div>
   );
+}
+
+function IconBtn({ icon, label, onClick }: { icon: IconName; label: string; onClick: () => void }) {
+  return <button class="gx-iconbtn" onClick={onClick} aria-label={label} title={label}><Icon name={icon} /></button>;
 }
 
 /** First load: say what is happening, and offer a way out if it stalls. */

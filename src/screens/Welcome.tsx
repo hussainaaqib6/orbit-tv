@@ -1,69 +1,47 @@
-// First run. Step one: pick how to add a playlist (or scan the QR code with a phone).
-// Step two: type the details with the remote.
+// First run: the sign-in screen, laid out like GalaxyXC's login (docs/GALAXYXC_REFERENCE.md): a
+// centred column with the logo, the kind of login, the fields and a full-width Sign In button.
+// Chips above the fields pick Xtream Codes, M3U link, file or MAC portal. Where pairing is available
+// a second button lets you type the details on a phone instead (scan the QR code).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Icon, type IconName } from '../ui/icons';
+import { Icon } from '../ui/icons';
 import { Wordmark } from '../ui/brand';
-import { SourceForm, type Kind } from './SourceForm';
+import { SourceForm } from './SourceForm';
 import { PairingPanel, pairingAvailable } from './PairingPanel';
 import { onAction } from '../nav/keys';
 import { focusFirst } from '../nav/focus';
-import { PLATFORM } from '../core/platform';
 import { clock } from '../core/format';
 
-function Option({ icon, title, sub, onClick, autofocus }: { icon: IconName; title: string; sub: string; onClick: () => void; autofocus?: boolean }) {
-  return (
-    <button class="option" onClick={onClick} data-autofocus={autofocus || undefined}>
-      <span class="option-icon"><Icon name={icon} /></span>
-      <span class="option-text"><b>{title}</b><small>{sub}</small></span>
-      <Icon name="right" class="option-go" />
-    </button>
-  );
-}
-
 export function Welcome() {
-  const [step, setStep] = useState<{ kind: Kind } | null>(null);
+  const [phone, setPhone] = useState(false);
   const [now, setNow] = useState(Date.now());
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(t); }, []);
-  // Back from "Type it here" returns to the choices.
+  // Back from the phone panel returns to the sign-in fields.
   useEffect(() => onAction(ref.current!, a => {
-    if (a === 'back' && step && !(document.activeElement instanceof HTMLInputElement)) { setStep(null); return true; }
-  }), [step]);
-  useEffect(() => { requestAnimationFrame(() => focusFirst(ref.current!)); }, [step]);
+    if (a === 'back' && phone) { setPhone(false); return true; }
+  }), [phone]);
+  useEffect(() => { requestAnimationFrame(() => focusFirst(ref.current!)); }, [phone]);
 
   return (
-    <div class="screen opaque" ref={ref}>
-      <div class="welcome-top"><Wordmark class="welcome-brand" /><span class="tnum">{clock(now)}</span></div>
-      {!step ? (
-        <div class="welcome">
-          <div class="welcome-main">
-            <h1>Add your first playlist</h1>
-            <p class="lead">{pairingAvailable ? 'Scan the code with your phone and type your provider details there. Or type them here with the remote.' : 'Enter the details your TV provider sent you.'}</p>
-            <div class="options">
-              <Option icon="tv" title="Type it here" sub="Xtream Codes, M3U link or MAC portal" onClick={() => setStep({ kind: 'xtream' })} autofocus />
-              <Option icon="list" title="M3U playlist link" sub="A link ending in .m3u or get.php" onClick={() => setStep({ kind: 'm3u' })} />
-              {PLATFORM !== 'android' && <Option icon="file" title="Open a playlist file" sub="An .m3u file on this device" onClick={() => setStep({ kind: 'file' })} />}
-            </div>
-          </div>
-          {pairingAvailable ? (
-            <div class="welcome-side card"><PairingPanel /></div>
-          ) : (
-            <div class="welcome-side card">
-              <h2>What you need</h2>
-              <p class="muted">Your provider's server address, username and password (Xtream Codes), or a playlist link. The app has no channels of its own.</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div class="welcome">
-          <div class="welcome-main">
-            <h1>Type it here</h1>
-            <p class="lead">Type your provider details.</p>
-            <p class="muted">Xtream Codes, M3U link or MAC portal. Back returns to the choices.</p>
-          </div>
-          <div class="welcome-side card form-card"><SourceForm kind={step.kind} onDone={() => setStep(null)} /></div>
-        </div>
-      )}
+    <div class="screen opaque gx-login-screen" ref={ref}>
+      <span class="gx-login-clock tnum">{clock(now)}</span>
+      <div class="gx-login">
+        <Wordmark class="gx-login-logo" />
+        {phone ? (
+          <>
+            <p class="gx-login-kind">SIGN IN WITH YOUR PHONE</p>
+            <div class="card"><PairingPanel /></div>
+            <button class="btn quiet gx-login-alt" onClick={() => setPhone(false)}><Icon name="left" />Type the details here</button>
+          </>
+        ) : (
+          <>
+            <p class="gx-login-kind">XTREAM CODES COMPATIBLE API · M3U · MAC PORTAL</p>
+            <SourceForm kind="xtream" />
+            {pairingAvailable && <button class="btn quiet gx-login-alt" onClick={() => setPhone(true)}><Icon name="tv" />Sign in with your phone instead</button>}
+            <p class="hint gx-login-note">Enter the details your TV provider sent you. The app has no channels of its own.</p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
