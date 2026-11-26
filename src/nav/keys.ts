@@ -37,6 +37,8 @@ export function actionForKey(e: Pick<KeyboardEvent, 'key' | 'keyCode'>, inText: 
   if (inText) {
     // Inside a text field only navigation and Escape leave the field; everything else is typing.
     if (e.key === 'Backspace' || e.key === ' ') return null;
+    // On-screen keyboard input (key "Unidentified"/"Process", keyCode 229) is always typing.
+    if (e.keyCode === 229 || e.key === 'Unidentified' || e.key === 'Process') return null;
   } else {
     const l = LETTERS[e.key.toLowerCase()];
     if (l && e.key.length === 1) return l;
@@ -56,7 +58,10 @@ export function actionForKey(e: Pick<KeyboardEvent, 'key' | 'keyCode'>, inText: 
     case 167: case 428: return 'chdown';
     case 403: return 'red'; case 404: return 'green'; case 405: return 'yellow'; case 406: return 'blue';
     case 461: return 'back';          // webOS / some Android TV remotes
-    case 229: return 'last';          // KEYCODE_LAST_CHANNEL
+    // 229 is never a remote button here: browsers report every character typed with an on-screen
+    // keyboard as keyCode 229 ("IME is composing"). Mapping it to Last channel made typing in a
+    // search box jump to the last channel. The real Last channel button arrives as the native key
+    // LAST_CHANNEL (NATIVE_KEY_MAP).
   }
   return null;
 }

@@ -36,6 +36,11 @@ describe('keys', () => {
     expect(actionForKey({ key: 'Backspace', keyCode: 8 }, true)).toBeNull();
     expect(actionForKey({ key: 'f', keyCode: 70 }, true)).toBeNull();
     expect(actionForKey({ key: 'Escape', keyCode: 27 }, true)).toBe('back');
+    // On-screen keyboard (Fire TV, Android TV): every letter arrives as keyCode 229. It is typing,
+    // never the Last channel button (which made the first letter of a search jump channels).
+    expect(actionForKey({ key: 'Unidentified', keyCode: 229 }, true)).toBeNull();
+    expect(actionForKey({ key: 'Process', keyCode: 229 }, true)).toBeNull();
+    expect(actionForKey({ key: 'Unidentified', keyCode: 229 }, false)).toBeNull();
     // Letters whose key codes match old remote codes must stay letters.
     expect(actionForKey({ key: 'u', keyCode: 85 }, true)).toBeNull();
     expect(actionForKey({ key: 'y', keyCode: 89 }, true)).toBeNull();
