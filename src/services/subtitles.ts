@@ -62,6 +62,34 @@ export const RATE_PRESETS: { label: string; rate: number }[] = [
   { label: '25 → 24 fps', rate: 24 / 25 },
 ];
 
+const ISO3: Record<string, string> = {
+  eng: 'en', spa: 'es', fre: 'fr', fra: 'fr', ger: 'de', deu: 'de', ita: 'it', por: 'pt', dut: 'nl', nld: 'nl', pol: 'pl',
+  ara: 'ar', tur: 'tr', rum: 'ro', ron: 'ro', swe: 'sv', gre: 'el', ell: 'el', hin: 'hi', urd: 'ur', rus: 'ru', chi: 'zh', zho: 'zh',
+  jpn: 'ja', kor: 'ko', dan: 'da', nor: 'no', fin: 'fi', heb: 'he', hun: 'hu', cze: 'cs', ces: 'cs', per: 'fa', fas: 'fa',
+};
+const NAMES: Record<string, string> = { english: 'en', spanish: 'es', french: 'fr', german: 'de', italian: 'it', portuguese: 'pt', dutch: 'nl', polish: 'pl', arabic: 'ar', turkish: 'tr', romanian: 'ro', swedish: 'sv', greek: 'el', hindi: 'hi', urdu: 'ur' };
+
+/** Two-letter language of a subtitle track, from its language tag or its label ('' if unknown). */
+export function trackLanguage(language: string, label: string): string {
+  const l = (language || '').toLowerCase().split(/[-_]/)[0];
+  if (l.length === 2) return l;
+  if (ISO3[l]) return ISO3[l];
+  const word = (label || '').toLowerCase().split(/[^a-z]+/).find(w => NAMES[w]);
+  return word ? NAMES[word] : '';
+}
+
+/**
+ * Which of the stream's subtitle tracks to switch on automatically: one in the viewer's language
+ * (not a "forced"/signs-only track if a full one exists), or the only track if its language is unknown.
+ */
+export function pickSubtitleTrack<T extends { language: string; label: string }>(tracks: T[], want: string): T | null {
+  const inLang = tracks.filter(t => trackLanguage(t.language, t.label) === want);
+  const full = inLang.find(t => !/forced|signs/i.test(t.label));
+  if (full ?? inLang[0]) return full ?? inLang[0];
+  if (tracks.length === 1 && !trackLanguage(tracks[0].language, tracks[0].label)) return tracks[0];
+  return null;
+}
+
 /** Escapes text for HTML, keeping <i>, <b>, <u> and line breaks. */
 export function cueHtml(text: string): string {
   return text

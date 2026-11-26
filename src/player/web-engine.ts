@@ -10,6 +10,7 @@ const FILE = /\.(mp4|mkv|webm|mov|m4v|avi|mp3|aac)$/i;
 
 export class WebEngine implements Engine {
   readonly name = 'web' as const;
+  readonly drawsEmbeddedSubtitles = false;
   private v: HTMLVideoElement;
   private hls: Hls | null = null;
   private ts: mpegts.Player | null = null;
@@ -173,6 +174,8 @@ export class WebEngine implements Engine {
     }
     this.emitTracks();
   }
+
+  setSubtitleStyle() { /* drawn by the web layer */ }
 
   destroy() {
     this.stop();

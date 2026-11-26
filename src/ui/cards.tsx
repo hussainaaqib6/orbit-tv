@@ -1,5 +1,6 @@
 // Cards for shelves and grids, and the options sheet that opens on hold OK / Menu / right-click.
 import { useEffect, useRef } from 'preact/hooks';
+import { memo } from 'preact/compat';
 import type { Channel, Item, Movie, Series } from '../sources/types';
 import { Img } from './Img';
 import { Icon } from './icons';
@@ -27,7 +28,7 @@ export function openItem(it: Item, channels?: Channel[]) {
   else push({ name: 'show', key: it.key });
 }
 
-export function PosterCard({ item, sub }: { item: Movie | Series; sub?: string }) {
+export const PosterCard = memo(function PosterCard({ item, sub }: { item: Movie | Series; sub?: string }) {
   const ref = useRef<HTMLButtonElement>(null);
   useItemMenu(ref, () => openItemMenu(item));
   const rp = resume.value[item.key];
@@ -41,7 +42,7 @@ export function PosterCard({ item, sub }: { item: Movie | Series; sub?: string }
       {sub !== undefined ? <div class="s clip">{sub}</div> : item.year ? <div class="s">{item.year}</div> : null}
     </button>
   );
-}
+});
 
 export function ChannelCard({ channel, list }: { channel: Channel; list?: Channel[] }) {
   const ref = useRef<HTMLButtonElement>(null);

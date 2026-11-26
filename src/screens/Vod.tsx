@@ -25,30 +25,49 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
     return items.filter(x => keys.has(x.key));
   }, [items, resume.value]);
 
+  // Items per category, worked out once so switching category is instant.
+  const byGroup = useMemo(() => {
+    const m = new Map<string, (Movie | Series)[]>();
+    for (const x of items) { let l = m.get(x.group); if (!l) m.set(x.group, (l = [])); l.push(x); }
+    return m;
+  }, [items]);
   const [group, setGroup] = useState<string>(ALL);
+  // The category column folds away while browsing posters, so more fit on a row.
+  const [browsing, setBrowsing] = useState(false);
   const [sort, setSort] = useState<Sort>('added');
   const screen = useRef<HTMLDivElement>(null);
   const catTimer = useRef(0);
 
   const list = useMemo(() => {
-    const base = group === ALL ? items : group === FAV ? favs : group === CONT ? inProgress : items.filter(x => x.group === group);
+    const base = group === ALL ? items : group === FAV ? favs : group === CONT ? inProgress : byGroup.get(group) ?? [];
     const out = [...base];
     if (sort === 'az') out.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === 'rating') out.sort((a, b) => b.rating - a.rating);
     else if (sort === 'year') out.sort((a, b) => b.year - a.year);
     else if (items.some(x => x.added)) out.sort((a, b) => b.added - a.added);
     return out;
-  }, [group, sort, items, favs, inProgress]);
+  }, [group, sort, items, favs, inProgress, byGroup]);
 
   const cycleSort = () => setSort(s => SORTS[(SORTS.findIndex(x => x.id === s) + 1) % SORTS.length].id);
-  useEffect(() => onAction(screen.current!, a => {
-    if (a === 'yellow') { cycleSort(); return true; }
-    if (a === 'back' && document.activeElement?.closest('.grid-wrap')) { focusEl(screen.current!.querySelector<HTMLElement>('.cat.on')); return true; }
-  }), []);
+  useEffect(() => {
+    const el = screen.current!;
+    const off = onAction(el, a => {
+      if (a === 'yellow') { cycleSort(); return true; }
+      // Back, or Left from the first column, brings the categories back.
+      if ((a === 'back' || a === 'left') && document.activeElement?.closest('.grid-wrap')) {
+        setBrowsing(false);
+        requestAnimationFrame(() => focusEl(el.querySelector<HTMLElement>('.cat.on')));
+        return true;
+      }
+    });
+    const onFocus = () => setBrowsing(!!document.activeElement?.closest('.grid-wrap'));
+    el.addEventListener('focusin', onFocus);
+    return () => { off(); el.removeEventListener('focusin', onFocus); };
+  }, []);
 
   const cat = (key: string, label: string, n: number) => (
     <button key={key} class={`cat${group === key ? ' on' : ''}`}
-      onFocus={() => { clearTimeout(catTimer.current); catTimer.current = window.setTimeout(() => setGroup(key), 300); }}
+      onFocus={() => { clearTimeout(catTimer.current); catTimer.current = window.setTimeout(() => setGroup(key), 400); }}
       onClick={() => { clearTimeout(catTimer.current); setGroup(key); requestAnimationFrame(() => focusEl(screen.current!.querySelector<HTMLElement>('[data-cell="0"] > *'))); }}>
       <span class="clip">{label}</span><span class="n">{n}</span>
     </button>
@@ -58,7 +77,7 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
 
   return (
     <div class="screen opaque" ref={screen}>
-      <div class="browse">
+      <div class={`browse${browsing ? ' folded' : ''}`}>
         <aside class="cats" data-nav-group="cats">
           <div class="cats-head"><h1>{title}</h1></div>
           <div class="cats-list">
@@ -73,10 +92,10 @@ export function Vod({ kind }: { kind: 'movies' | 'series' }) {
           <div class="vod-head">
             <h2 class="clip">{label}</h2>
             <span class="muted">{list.length}</span>
-            <button class="chip" onClick={cycleSort} aria-label="Change order"><Icon name="list" style={{ width: '1.1rem', height: '1.1rem' }} />{SORTS.find(s => s.id === sort)!.label}</button>
+            <button class="chip" onClick={cycleSort} aria-label="Change order"><Icon name="sort" />{SORTS.find(s => s.id === sort)!.label}</button>
           </div>
           {list.length ? (
-            <VirtualGrid items={list} minRem={10} ratio={1.5} extraRem={3.4} keyOf={x => x.key} render={x => <PosterCard item={x} />} />
+            <VirtualGrid items={list} minRem={9} ratio={1.5} extraRem={2.9} keyOf={x => x.key} render={x => <PosterCard item={x} />} />
           ) : <div class="empty"><p>Nothing here yet.</p></div>}
         </section>
       </div>

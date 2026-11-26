@@ -11,7 +11,7 @@ import { clamp } from '../core/format';
 import type { Channel, Playable } from '../sources/types';
 import { noteChannelPlayed, resume, saveResume, settings, type Aspect } from '../sources/library';
 import { channelPlayable, channelUrl, episodeList, episodePlayable, liveFormat } from './playables';
-import { cueAt, parseSubtitles, type Cue } from '../services/subtitles';
+import { cueAt, parseSubtitles, pickSubtitleTrack, type Cue } from '../services/subtitles';
 
 export type Mode = 'off' | 'preview' | 'full';
 
@@ -46,6 +46,8 @@ export const subtitleText = computed(() => {
 
 let engine: Engine | null = null;
 let triedOtherFormat = false;
+let autoSubsDone = false;
+export const subtitlesRaised = signal(false);
 let lastSave = 0;
 let previewRect: Rect | null = null;
 
@@ -75,12 +77,13 @@ async function getEngine(): Promise<Engine> {
       });
       maybeSaveResume();
     },
-    tracks: (t: Track[]) => { tracks.value = t; },
+    tracks: (t: Track[]) => { tracks.value = t; autoSubtitles(t); },
     cue: (text: string) => { embeddedCue.value = text; },
     error: (msg: string) => onError(msg),
   };
   engine = native ? new NativeEngine(events) : new WebEngine!(events);
   engineName.value = engine.name;
+  applySubtitleStyle();
   engine.setAspect(aspect.value, zoom.value);
   return engine;
 }
@@ -103,6 +106,7 @@ export async function play(p: Playable, o: PlayOptions = {}) {
   if (o.channels) channelList.value = o.channels;
 
   triedOtherFormat = false;
+  autoSubsDone = false;
   batch(() => {
     current.value = p;
     error.value = '';
@@ -124,6 +128,9 @@ export async function play(p: Playable, o: PlayOptions = {}) {
 
   const e = await getEngine();
   if (current.value !== p) return;
+  // The engine may have just been created: tell it where the picture goes before loading.
+  // (Without this the first preview played full-size behind the screen, so the box stayed black.)
+  e.setRect(mode.value === 'preview' ? previewRect : null);
   e.setAspect(aspect.value, 1);
   e.setSpeed(1);
   let url = p.url;
@@ -305,6 +312,25 @@ export function retryOtherFormat() {
 export function retry() {
   const p = current.value;
   if (p) play(p, { preview: mode.value === 'preview' });
+}
+
+/** Native engines draw the stream's own subtitles; keep their look in step with the settings. */
+export function applySubtitleStyle() {
+  const s = settings.value;
+  engine?.setSubtitleStyle(s.subSize / 100, s.subBackground, subtitlesRaised.value);
+}
+export const embeddedDrawnNatively = () => !!engine?.drawsEmbeddedSubtitles;
+
+/** Films and episodes: switch on the stream's own subtitles in the viewer's language, once per item. */
+function autoSubtitles(list: Track[]) {
+  const p = current.value;
+  if (autoSubsDone || !list.length || !p || p.kind === 'live' || p.kind === 'catchup') return;
+  autoSubsDone = true;
+  if (!settings.value.autoSubtitles || external.value) return;
+  const text = list.filter(t => t.type === 'text');
+  if (text.some(t => t.selected)) return;
+  const pick = pickSubtitleTrack(text, settings.value.subLang);
+  if (pick) engine?.selectTrack('text', pick.id);
 }
 
 /* ------------------------------ internals ------------------------------ */

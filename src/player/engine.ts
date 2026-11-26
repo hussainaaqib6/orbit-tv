@@ -41,5 +41,8 @@ export interface Engine {
   setSpeed(speed: number): void;
   setMuted(muted: boolean): void;
   selectTrack(type: 'audio' | 'text', id: string | null): void;
+  /** Native engines draw the stream's own subtitles themselves; the web layer draws everything else. */
+  readonly drawsEmbeddedSubtitles: boolean;
+  setSubtitleStyle(scale: number, background: boolean, raised: boolean): void;
   destroy(): void;
 }

@@ -20,6 +20,7 @@ export interface OrbitPlayerPlugin {
   setSpeed(o: { speed: number }): Promise<void>;
   setMuted(o: { muted: boolean }): Promise<void>;
   selectTrack(o: { type: 'audio' | 'text'; id: string | null }): Promise<void>;
+  setSubtitleStyle(o: { scale: number; background: boolean; raised: boolean }): Promise<void>;
   exitApp(): Promise<void>;
   /** Downloads to the app cache; read the file with fetch(Capacitor.convertFileSrc(path)). */
   download(o: { url: string; name: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<{ status: number; path: string; size: number; contentType?: string }>;

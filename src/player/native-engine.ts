@@ -14,6 +14,7 @@ const toNative = (r: Rect | null): NativeRect | null => {
 
 export class NativeEngine implements Engine {
   readonly name = 'native' as const;
+  readonly drawsEmbeddedSubtitles = true;
   private subs: Promise<PluginListenerHandle>[] = [];
   private rect: Rect | null = null;
   private live = false;
@@ -28,7 +29,6 @@ export class NativeEngine implements Engine {
       }),
       OrbitPlayer.addListener('time', t => ev.time({ position: t.position, duration: t.duration, live: this.live || t.live, seekable: t.seekable })),
       OrbitPlayer.addListener('tracks', t => ev.tracks(t.tracks.filter(x => x.type !== 'video').map(x => ({ id: x.id, type: x.type as 'audio' | 'text', label: x.label, language: x.language, selected: x.selected })))),
-      OrbitPlayer.addListener('cues', c => ev.cue(c.text)),
       OrbitPlayer.addListener('error', e => { ev.state('error'); ev.error(e.message, { http: e.http, code: e.code }); }),
     );
   }
@@ -46,6 +46,7 @@ export class NativeEngine implements Engine {
   setSpeed(speed: number) { OrbitPlayer.setSpeed({ speed }).catch(() => {}); }
   setMuted(muted: boolean) { OrbitPlayer.setMuted({ muted }).catch(() => {}); }
   selectTrack(type: 'audio' | 'text', id: string | null) { OrbitPlayer.selectTrack({ type, id }).catch(() => {}); }
+  setSubtitleStyle(scale: number, background: boolean, raised: boolean) { OrbitPlayer.setSubtitleStyle({ scale, background, raised }).catch(() => {}); }
   destroy() {
     this.stop();
     this.subs.forEach(p => p.then(h => h.remove()).catch(() => {}));

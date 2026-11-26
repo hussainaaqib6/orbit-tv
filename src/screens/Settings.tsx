@@ -125,6 +125,7 @@ function Subtitles() {
       <h2>Subtitles</h2>
       <Choice label="Size" value={s.subSize} onChange={v => updateSettings({ subSize: v })} options={[80, 100, 125, 150].map(v => ({ v, label: `${v}%` }))} />
       <div class="stack" style={{ marginBottom: '1.4rem' }}>
+        <Toggle label="Turn on a film's own subtitles" sub="When a film or episode has subtitles in your language, show them straight away" on={s.autoSubtitles} onChange={v => updateSettings({ autoSubtitles: v })} />
         <Toggle label="Dark box behind subtitles" on={s.subBackground} onChange={v => updateSettings({ subBackground: v })} />
       </div>
       <TextSetting label="Preferred language (two letters)" value={s.subLang} onSave={v => updateSettings({ subLang: v.slice(0, 2).toLowerCase() || 'en' })} placeholder="en" />
