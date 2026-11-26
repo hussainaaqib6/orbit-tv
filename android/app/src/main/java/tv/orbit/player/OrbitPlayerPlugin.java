@@ -50,7 +50,18 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Collections;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -295,6 +306,117 @@ public class OrbitPlayerPlugin extends Plugin {
                 if (c != null) c.disconnect();
             }
         });
+    }
+
+    /* ------------------------------ phone pairing ------------------------------ */
+    // While the "add a playlist" screen is open, the TV serves one small page on the home network.
+    // The QR code points a phone at it; the viewer types their provider details on the phone, and they
+    // arrive here as a "pairing" event. The address contains a random token, the server answers nothing
+    // else, it only accepts a few small requests, and it stops as soon as the screen closes.
+
+    private ServerSocket pairServer;
+    private String pairToken;
+    private String pairPage = "";
+
+    @PluginMethod
+    public void startPairing(PluginCall call) {
+        String page = call.getString("page", "");
+        stopPairingServer();
+        try {
+            String ip = lanAddress();
+            if (ip == null) { call.reject("This device is not connected to a network."); return; }
+            byte[] rnd = new byte[9];
+            new SecureRandom().nextBytes(rnd);
+            StringBuilder tok = new StringBuilder();
+            for (byte b : rnd) tok.append(String.format(Locale.ROOT, "%02x", b));
+            pairToken = tok.toString();
+            pairPage = page;
+            ServerSocket server = new ServerSocket(0, 8);
+            pairServer = server;
+            Thread t = new Thread(() -> serve(server), "orbit-pairing");
+            t.setDaemon(true);
+            t.start();
+            JSObject r = new JSObject();
+            r.put("url", "http://" + ip + ":" + server.getLocalPort() + "/" + pairToken);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("Could not start: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void stopPairing(PluginCall call) {
+        stopPairingServer();
+        call.resolve();
+    }
+
+    private void stopPairingServer() {
+        if (pairServer != null) { try { pairServer.close(); } catch (Exception ignored) {} }
+        pairServer = null;
+        pairToken = null;
+    }
+
+    private static String lanAddress() throws Exception {
+        String fallback = null;
+        for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+            if (!nif.isUp() || nif.isLoopback()) continue;
+            for (InetAddress a : Collections.list(nif.getInetAddresses())) {
+                if (!(a instanceof Inet4Address) || a.isLoopbackAddress()) continue;
+                if (a.isSiteLocalAddress()) return a.getHostAddress();
+                if (fallback == null) fallback = a.getHostAddress();
+            }
+        }
+        return fallback;
+    }
+
+    private void serve(ServerSocket server) {
+        int handled = 0;
+        while (!server.isClosed() && handled++ < 500) {
+            try (Socket sock = server.accept()) {
+                sock.setSoTimeout(8000);
+                BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream(), StandardCharsets.UTF_8));
+                String line = in.readLine();
+                if (line == null) continue;
+                String[] req = line.split(" ");
+                int length = 0;
+                for (String h; (h = in.readLine()) != null && !h.isEmpty(); ) {
+                    if (h.toLowerCase(Locale.ROOT).startsWith("content-length:")) length = Integer.parseInt(h.substring(15).trim());
+                }
+                String path = req.length > 1 ? req[1].split("\\?")[0] : "";
+                String token = pairToken;
+                boolean ok = token != null && path.equals("/" + token);
+                OutputStream out = sock.getOutputStream();
+                if (!ok) { respond(out, 404, "text/plain", "Not found"); continue; }
+                if ("POST".equals(req[0]) && length > 0 && length < 16384) {
+                    char[] body = new char[length];
+                    int read = 0;
+                    while (read < length) { int n = in.read(body, read, length - read); if (n < 0) break; read += n; }
+                    JSObject fields = new JSObject();
+                    for (String pair : new String(body, 0, read).split("&")) {
+                        int eq = pair.indexOf('=');
+                        if (eq <= 0) continue;
+                        String k = URLDecoder.decode(pair.substring(0, eq), "UTF-8");
+                        String v = URLDecoder.decode(pair.substring(eq + 1), "UTF-8");
+                        if (k.length() <= 20 && v.length() <= 4000) fields.put(k, v);
+                    }
+                    notifyListeners("pairing", fields);
+                    respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "sent"));
+                } else {
+                    respond(out, 200, "text/html; charset=utf-8", pairPage.replace("<!--STATE-->", "form"));
+                }
+            } catch (Exception ignored) {
+                // A dropped or slow connection: wait for the next one.
+            }
+        }
+    }
+
+    private static void respond(OutputStream out, int code, String type, String body) throws Exception {
+        byte[] b = body.getBytes(StandardCharsets.UTF_8);
+        String head = "HTTP/1.1 " + code + (code == 200 ? " OK" : " Not Found") + "\r\nContent-Type: " + type
+                + "\r\nContent-Length: " + b.length + "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+        out.write(head.getBytes(StandardCharsets.UTF_8));
+        out.write(b);
+        out.flush();
     }
 
     @PluginMethod
@@ -723,6 +845,7 @@ public class OrbitPlayerPlugin extends Plugin {
         super.handleOnDestroy();
         main.removeCallbacks(ticker);
         downloads.shutdownNow();
+        stopPairingServer();
         if (player != null) { player.release(); player = null; }
         if (instance == this) instance = null;
     }

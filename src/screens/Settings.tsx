@@ -4,6 +4,7 @@ import type { ComponentChildren } from 'preact';
 import { sources, settings, updateSettings, updateSource, removeSource, reload, reloadGuide, loading, type Settings as S, type Aspect } from '../sources/library';
 import type { Source } from '../sources/types';
 import { SourceForm } from './SourceForm';
+import { PairingPanel, pairingAvailable } from './PairingPanel';
 import { confirmDialog, toast } from '../ui/overlays';
 import { Icon } from '../ui/icons';
 import { PLATFORM } from '../core/platform';
@@ -53,7 +54,10 @@ function Playlists() {
     return (
       <>
         <h2>{editing === 'new' ? 'Add a playlist' : `Edit ${editing.name}`}</h2>
-        <SourceForm existing={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />
+        <div class="add-layout">
+          <SourceForm existing={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />
+          {editing === 'new' && pairingAvailable && <div class="card"><PairingPanel onAdded={() => setEditing(null)} /></div>}
+        </div>
       </>
     );
   }

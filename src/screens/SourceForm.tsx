@@ -7,7 +7,7 @@ import { normaliseMac } from '../sources/stalker';
 import { toast } from '../ui/overlays';
 import { Icon } from '../ui/icons';
 
-type Kind = 'xtream' | 'm3u' | 'file' | 'stalker';
+export type Kind = 'xtream' | 'm3u' | 'file' | 'stalker';
 const KINDS: { id: Kind; label: string }[] = [
   { id: 'xtream', label: 'Xtream Codes' }, { id: 'm3u', label: 'M3U link' }, { id: 'file', label: 'M3U file' }, { id: 'stalker', label: 'MAC portal' },
 ];
@@ -23,8 +23,8 @@ function Field({ label, value, onInput, type = 'text', placeholder, hint }: { la
   );
 }
 
-export function SourceForm({ existing, onDone }: { existing?: Source; onDone?: () => void }) {
-  const initialKind: Kind = existing ? (existing.type === 'm3u' && existing.fromFile ? 'file' : existing.type) : 'xtream';
+export function SourceForm({ existing, onDone, kind: startKind }: { existing?: Source; onDone?: () => void; kind?: Kind }) {
+  const initialKind: Kind = existing ? (existing.type === 'm3u' && existing.fromFile ? 'file' : existing.type) : startKind ?? 'xtream';
   const [kind, setKind] = useState<Kind>(initialKind);
   const [f, setF] = useState({
     name: existing?.name ?? '', server: existing?.server ?? '', user: existing?.user ?? '', pass: existing?.pass ?? '',
@@ -95,8 +95,8 @@ export function SourceForm({ existing, onDone }: { existing?: Source; onDone?: (
         <>
           <Field label="Server address" value={f.server} onInput={set('server')} type="url" placeholder="http://example.com:8080" />
           <div class="row" style={{ alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}><Field label="Username" value={f.user} onInput={set('user')} /></div>
-            <div style={{ flex: 1 }}><Field label="Password" value={f.pass} onInput={set('pass')} type="password" /></div>
+            <div style={{ flex: 1 }}><Field label="Username" value={f.user} onInput={set('user')} placeholder="Press OK to type" /></div>
+            <div style={{ flex: 1 }}><Field label="Password" value={f.pass} onInput={set('pass')} type="password" placeholder="Press OK to type" /></div>
           </div>
         </>
       )}

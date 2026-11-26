@@ -22,9 +22,13 @@ export interface OrbitPlayerPlugin {
   selectTrack(o: { type: 'audio' | 'text'; id: string | null }): Promise<void>;
   setSubtitleStyle(o: { scale: number; background: boolean; raised: boolean }): Promise<void>;
   exitApp(): Promise<void>;
+  /** Serves `page` on the home network while the add-playlist screen is open; see PairingPanel. */
+  startPairing(o: { page: string }): Promise<{ url: string }>;
+  stopPairing(): Promise<void>;
   /** Downloads to the app cache; read the file with fetch(Capacitor.convertFileSrc(path)). */
   download(o: { url: string; name: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<{ status: number; path: string; size: number; contentType?: string }>;
   addListener(ev: 'key', fn: (e: NativeKeyEvent) => void): Promise<PluginListenerHandle>;
+  addListener(ev: 'pairing', fn: (e: Record<string, string>) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'state', fn: (e: NativeState) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'time', fn: (e: NativeTime) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'tracks', fn: (e: { tracks: NativeTrack[] }) => void): Promise<PluginListenerHandle>;
