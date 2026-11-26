@@ -1,4 +1,4 @@
-// The Android plugin that lives in android/app/src/main/java/tv/orbit/player/OrbitPlayerPlugin.java.
+// The Android plugin that lives in android/app/src/main/java/com/matrixstreams/player/OrbitPlayerPlugin.java.
 // It plays video with ExoPlayer on a surface behind the (transparent) WebView, and forwards remote
 // keys the WebView never sees (Back, Menu, media and channel keys, colour buttons).
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';

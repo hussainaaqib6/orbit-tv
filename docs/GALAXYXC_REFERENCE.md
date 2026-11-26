@@ -92,5 +92,6 @@ Nothing is marked as tested on a physical Fire TV Stick in this file. See `docs/
 - The APK was studied from its decoded files, not run, so animations and timings are approximate.
 - VPN is left out: an OpenVPN client is GPL-licensed native code. It needs its own licensing decision
   and a VPN service to connect to.
-- The Android package name is still `tv.orbit.player`. Changing it makes Android treat the app as a new
-  one: it installs beside the old one and starts with no playlists. That needs your go-ahead.
+- The Android package name is now `com.matrixstreams.player` (it was `tv.orbit.player`). Android treats
+  it as a new app: it installs beside the old one and starts with no playlists, so the old app can be
+  uninstalled once the new one is set up.

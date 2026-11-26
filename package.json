@@ -54,7 +54,7 @@
     "vitest": "5.1.2"
   },
   "build": {
-    "appId": "tv.orbit.player",
+    "appId": "com.matrixstreams.player",
     "productName": "Matrix 8K Player",
     "files": [
       "desktop/**/*",

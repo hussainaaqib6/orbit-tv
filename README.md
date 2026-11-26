@@ -117,7 +117,7 @@ src/
   screens/     Home, Live TV, TV guide, Movies/Series, details, Search, Favourites, Settings
   styles/      theme and player styles
 tests/         Vitest tests for parsers, subtitles, OpenSubtitles hash, navigation and keys
-android/app/src/main/java/tv/orbit/player/
+android/app/src/main/java/com/matrixstreams/player/
   OrbitPlayerPlugin.java   ExoPlayer behind the WebView, remote key forwarding
   MainActivity.java        hands remote keys to the plugin
 desktop/       Electron main process and preload

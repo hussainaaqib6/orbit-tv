@@ -1,5 +1,5 @@
 {
-  "appId": "tv.orbit.player",
+  "appId": "com.matrixstreams.player",
   "appName": "Matrix 8K Player",
   "webDir": "dist",
   "server": {

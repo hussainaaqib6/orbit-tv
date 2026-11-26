@@ -7,8 +7,8 @@ set -uo pipefail
 out=device-test; mkdir -p "$out"
 key() { for k in "$@"; do adb shell input keyevent "$k"; sleep 0.6; done; }
 shot() { sleep "${2:-1}"; adb exec-out screencap -p > "$out/$1.png"; echo "shot $1"; }
-alive() { adb shell pidof tv.orbit.player > /dev/null && echo yes || echo NO; }
-mem() { echo "$1: app alive=$(alive) $(adb shell dumpsys meminfo | grep -E 'tv.orbit.player|sandboxed_process' | tr -s ' ' | tr '\n' ';')" | tee -a "$out/memory.txt"; }
+alive() { adb shell pidof com.matrixstreams.player > /dev/null && echo yes || echo NO; }
+mem() { echo "$1: app alive=$(alive) $(adb shell dumpsys meminfo | grep -E 'com.matrixstreams.player|sandboxed_process' | tr -s ' ' | tr '\n' ';')" | tee -a "$out/memory.txt"; }
 wait_log() { # wait_log <pattern> <seconds> <shot prefix>
   local i=0
   while [ $i -lt "$2" ]; do
@@ -21,7 +21,7 @@ wait_log() { # wait_log <pattern> <seconds> <shot prefix>
 
 adb install -r OrbitTV-debug.apk
 adb logcat -c
-adb shell am start -n tv.orbit.player/.MainActivity
+adb shell am start -n com.matrixstreams.player/.MainActivity
 sleep 20
 shot 01-welcome
 # Add the provider the way a phone would after scanning the QR code: post the form to the TV.
@@ -84,9 +84,9 @@ shot 22-tv-guide-scrolled 3
 mem guide
 # Start again: the saved playlist and guide should come up in seconds.
 adb logcat -d > "$out/logcat-first-run.txt"
-adb shell am force-stop tv.orbit.player
+adb shell am force-stop com.matrixstreams.player
 adb logcat -c
-adb shell am start -n tv.orbit.player/.MainActivity
+adb shell am start -n com.matrixstreams.player/.MainActivity
 shot 23-relaunch 6
 wait_log '\[orbit\] startup finished' 120 24-relaunch
 shot 25-relaunch-home 2
