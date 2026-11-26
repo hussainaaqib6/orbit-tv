@@ -413,6 +413,23 @@ public class OrbitPlayerPlugin extends Plugin {
         call.resolve(o);
     }
 
+    /** Guide search: { json: '[[channel, start, stop, title, desc, sub, ep, cat, img, rating], …]' }. */
+    @PluginMethod
+    public void guideSearch(PluginCall call) {
+        String q = call.getString("q", "");
+        long from = call.getLong("from", 0L);
+        int limit = call.getInt("limit", 60);
+        guideQueries.execute(() -> {
+            try {
+                JSObject o = new JSObject();
+                o.put("json", GuideStore.search(getContext(), q, from, limit));
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        });
+    }
+
     /** Programmes for some guide ids: { json: '{"id": [[start, stop, title, desc], …]}' }. */
     @PluginMethod
     public void guideQuery(PluginCall call) {

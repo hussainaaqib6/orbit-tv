@@ -75,7 +75,8 @@ export function Sports() {
     if (a === 'back' && t && !t.closest('.cats')) { focusEl(screen.current!.querySelector<HTMLElement>('.cat.on')); return true; }
   }), []);
 
-  const play = (c: Channel, list: Channel[]) => P.playChannel(c, { channels: list });
+  // If a match stream fails, the player moves on to the match's other streams.
+  const play = (c: Channel, list: Channel[]) => P.playChannel(c, { channels: list, alternatives: list.filter(x => x.key !== c.key) });
 
   return (
     <div class="screen" ref={screen}>

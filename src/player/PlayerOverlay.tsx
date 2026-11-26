@@ -14,9 +14,9 @@ import { pushLayer, focusEl, focusFirst } from '../nav/focus';
 import { Icon } from '../ui/icons';
 import { Img } from '../ui/Img';
 import { VirtualList, rowProps } from '../ui/VirtualList';
-import { toast, sheetOpen, closeAllSheets } from '../ui/overlays';
+import { toast, sheetOpen, closeAllSheets, openSheet, SheetItem } from '../ui/overlays';
 import { openAudio, openEpisodes, openOptions, openPicture, openSubtitles } from './sheets';
-import { catalog, isFavourite, nowNextFor, settings, toggleFavourite, numberOf, channelByNumber } from '../sources/library';
+import { catalog, isFavourite, nowNextFor, settings, updateSettings, toggleFavourite, numberOf, channelByNumber, ratings, rate } from '../sources/library';
 import { progress } from '../sources/epg';
 import { clock, duration as fmt } from '../core/format';
 import { cueHtml } from '../services/subtitles';
@@ -137,6 +137,18 @@ function hiddenAction(a: Action): boolean {
     case 'back': P.exitFull(); return true;
   }
   return false;
+}
+
+/** Rate This: 1–5 stars, without stopping playback. */
+function openRate(key: string, title: string) {
+  openSheet(`Rate ${title}`, () => (
+    <>
+      {[5, 4, 3, 2, 1].map(n => <SheetItem key={n} label={'★'.repeat(n) + '☆'.repeat(5 - n)} checked={ratings.value[key] === n} autofocus={(ratings.value[key] ?? 5) === n}
+        onClick={() => { rate(key, n); closeAllSheets(); toast('Thanks, rating saved'); }} />)}
+      {ratings.value[key] && <SheetItem label="Remove my rating" onClick={() => { rate(key, null); closeAllSheets(); }} />}
+      <SheetItem label="Stop asking (turn off Rate This)" onClick={() => { updateSettings({ rateThis: false }); closeAllSheets(); toast('Rate This is off. Turn it back on in Settings → Player.'); }} />
+    </>
+  ));
 }
 
 /* ------------------------------ seek bar ------------------------------ */
@@ -352,6 +364,11 @@ export function PlayerOverlay() {
             {live && <button class="pbtn wide" onClick={() => { panel.value = true; }}><Icon name="list" /><span>Channels</span></button>}
             {!live && cur.series && <button class="pbtn wide" onClick={openEpisodes}><Icon name="episodes" /><span>Episodes</span></button>}
             {!live && cur.series && <button class="pbtn" onClick={() => P.playEpisodeOffset(1)} aria-label="Next episode"><Icon name="next" /></button>}
+            {!live && s.rateThis && cur.kind !== 'catchup' && P.duration.value > 0 && P.position.value / P.duration.value >= 0.8 && (
+              <button class={`pbtn wide${ratings.value[cur.episode?.key ?? cur.key] ? ' on' : ''}`} onClick={() => openRate(cur.episode?.key ?? cur.key, cur.title)}>
+                <Icon name="star" /><span>{ratings.value[cur.episode?.key ?? cur.key] ? `${ratings.value[cur.episode?.key ?? cur.key]}★` : 'Rate this'}</span>
+              </button>
+            )}
             <span class="p-gap" />
             <button class="pbtn wide" onClick={openSubtitles}><Icon name="cc" /><span>Subtitles</span></button>
             <button class="pbtn wide" onClick={openAudio}><Icon name={P.muted.value ? 'mute' : 'audio'} /><span>Audio</span></button>

@@ -99,3 +99,27 @@ export async function useNativeGuide(indexPath: string, extra: Map<string, Progr
 
 /** For saving the in-memory guide between launches. */
 export function memoryEntries(): [string, Programme[]][] { return [...mem]; }
+
+/** Programmes whose title (or episode title) contains `q`, from now on: [guide id, programme]. */
+export async function searchProgrammes(q: string, limit = 60): Promise<[string, Programme][]> {
+  const from = Date.now();
+  const out: [string, Programme][] = [];
+  if (q.trim().length < 2) return out;
+  if (NATIVE_GUIDE) {
+    try {
+      const r = await OrbitPlayer.guideSearch({ q, from, limit });
+      for (const [ch, start, stop, title, desc, sub, ep, cat, img, rating] of JSON.parse(r.json) as [string, number, number, string, string, string, string, string, string, string][]) {
+        out.push([ch, { start, stop, title, desc, sub: sub || undefined, ep: ep || undefined, cat: cat || undefined, img: img || undefined, rating: rating || undefined }]);
+      }
+    } catch (e) { console.warn('[orbit] guide search failed', e); }
+  }
+  const ql = q.toLowerCase();
+  for (const [id, list] of mem) {
+    for (const p of list) {
+      if (p.stop > from && (p.title.toLowerCase().includes(ql) || p.sub?.toLowerCase().includes(ql))) out.push([id, p]);
+      if (out.length >= limit) break;
+    }
+    if (out.length >= limit) break;
+  }
+  return out.sort((a, b) => a[1].start - b[1].start).slice(0, limit);
+}

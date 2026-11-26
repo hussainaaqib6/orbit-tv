@@ -32,6 +32,7 @@ export interface OrbitPlayerPlugin {
   guideBuild(o: { urls: string[]; ids: string[]; names: string[]; offsetHours: number; from: number; to: number; maxDesc?: number }): Promise<{ programmes: number; channels: number; errors: string[]; indexPath: string }>;
   guideInfo(): Promise<{ exists: boolean; indexPath: string }>;
   guideQuery(o: { ids: string[]; from: number; to: number }): Promise<{ json: string }>;
+  guideSearch(o: { q: string; from: number; limit?: number }): Promise<{ json: string }>;
   addListener(ev: 'progress', fn: (e: NativeProgress) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'key', fn: (e: NativeKeyEvent) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'pairing', fn: (e: Record<string, string>) => void): Promise<PluginListenerHandle>;

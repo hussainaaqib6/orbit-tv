@@ -14,12 +14,12 @@ import { defaults } from '../core/platform';
 import { APP_NAME } from '../core/brand';
 import { groupKey, isAdultGroup, unlocked, type Kind } from '../sources/restrictions';
 import { requirePin, setNewPin } from '../ui/pin';
-import { RemoteButtons, MenuSettings, Themes } from './SettingsMore';
+import { RemoteButtons, MenuSettings, Themes, HomeSettings } from './SettingsMore';
 
 const SECTIONS = [
   { id: 'playlists', label: 'Playlists' }, { id: 'appearance', label: 'Appearance' }, { id: 'player', label: 'Player' },
   { id: 'subtitles', label: 'Subtitles' }, { id: 'guide', label: 'TV guide' }, { id: 'sports', label: 'Sports' },
-  { id: 'categories', label: 'Categories' }, { id: 'parental', label: 'Parental controls' }, { id: 'remote', label: 'Remote buttons' },
+  { id: 'home', label: 'Home screen' }, { id: 'categories', label: 'Categories' }, { id: 'parental', label: 'Parental controls' }, { id: 'remote', label: 'Remote buttons' },
   { id: 'menu', label: 'Side menu' }, { id: 'themes', label: 'Colours & theme' }, { id: 'general', label: 'General' }, { id: 'services', label: 'Artwork and info' }, { id: 'about', label: 'About' },
 ];
 
@@ -55,6 +55,8 @@ export const SETTINGS_INDEX: { id: string; label: string; section: string; words
   { id: 'extraEpg', label: 'Extra guide links', section: 'guide', words: 'epg xmltv url source' },
   { id: 'matchCards', label: 'Match cards', section: 'sports', words: 'sports fixtures classic big cards football' },
   { id: 'sportsMyChannels', label: 'My channels only', section: 'sports', words: 'sports fixtures streams available hide' },
+  { id: 'homeRows', label: 'Home screen rows', section: 'home', words: 'home rows shelves continue watching recently added watched unwatched sports row arrange' },
+  { id: 'rateThis', label: 'Rate This', section: 'player', words: 'rating rate stars prompt end' },
   { id: 'categories', label: 'Hide categories', section: 'categories', words: 'hide hidden categories groups folders filter show' },
   { id: 'pin', label: 'Parental PIN', section: 'parental', words: 'parental controls pin lock kids children adult restrictions password' },
   { id: 'lockAdult', label: 'Lock adult categories', section: 'parental', words: 'adult xxx 18 parental lock' },
@@ -185,6 +187,7 @@ function Player() {
       <div class="stack">
         <Toggle id="autoFailover" label="Switch to another version of a failing channel" sub="HD, FHD or backup versions of the same channel, from your playlists. Only one stream is open at a time." on={s.autoFailover} onChange={v => set({ autoFailover: v })} />
         <Toggle id="autoplayNext" label="Play the next episode automatically" on={s.autoplayNext} onChange={v => set({ autoplayNext: v })} />
+        <Toggle id="rateThis" label="Rate This" sub="Offer a rating button near the end of films and episodes" on={s.rateThis} onChange={v => set({ rateThis: v })} />
       </div>
     </>
   );
@@ -396,7 +399,7 @@ export function Settings({ section, highlight }: { section?: string; highlight?:
   const [flash, setFlash] = useState(highlight ?? '');
   const body: Record<string, () => ComponentChildren> = {
     playlists: Playlists, appearance: Appearance, player: Player, subtitles: Subtitles, guide: GuideSettings, sports: SportsSettings,
-    categories: Categories, parental: Parental, remote: RemoteButtons, menu: MenuSettings, themes: Themes,
+    home: HomeSettings, categories: Categories, parental: Parental, remote: RemoteButtons, menu: MenuSettings, themes: Themes,
     general: General, services: Services, about: About,
   };
   const Body = body[cur] ?? Playlists;

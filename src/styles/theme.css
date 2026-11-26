@@ -653,3 +653,10 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .vrow-plot { color: var(--faint); font-size: 0.85rem; line-height: 1.35; }
 .vrow:focus .vrow-bits, .vrow:focus .vrow-plot { color: #fff; }
 .hidden-mark { width: 0.95rem; height: 0.95rem; color: var(--faint); flex: none; margin-right: 0.3rem; vertical-align: -0.12rem; }
+
+.prog-card { flex: none; width: 17rem; display: flex; flex-direction: column; gap: 0.3rem; padding: 0.9rem 1rem; border-radius: var(--r-m); background: var(--bg-2); text-align: left; }
+.prog-card .when { font-size: 0.82rem; font-weight: 700; color: var(--muted); }
+.prog-card:focus { background: var(--grad); color: #fff; box-shadow: var(--ring); }
+.prog-card:focus .muted, .prog-card:focus .when { color: #fff; }
+.badge-new { position: absolute; top: 0.45rem; left: 0.45rem; padding: 0.15rem 0.45rem; border-radius: 0.35rem; background: var(--blue); color: #fff; font-size: 0.7rem; font-weight: 800; }
+.art { position: relative; }

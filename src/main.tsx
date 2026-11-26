@@ -22,6 +22,9 @@ async function boot() {
   detectFlexGap();
   await store.restore();
   render(<App />, document.getElementById('app')!);
-  if (sources.value.length) withStartup(start);
+  if (sources.value.length) {
+    // After start-up, quietly check favourite series for new episodes.
+    withStartup(start).then(() => setTimeout(() => import('./services/newEpisodes').then(m => m.checkNewEpisodes()), 20000));
+  }
 }
 boot();

@@ -84,6 +84,10 @@ export interface Settings {
   sortByGroup: Record<string, string>;
   /** Films/series view: 'grid' (posters), 'list' (poster and details), 'compact' (text rows). */
   vodView: Record<string, 'grid' | 'list' | 'compact'>;
+  /** Home rows in order (see screens/homeRows.ts); sports rows are "sport:<league id>". */
+  homeRows: { id: string; on: boolean }[];
+  /** Offer "Rate this" near the end of films and episodes. */
+  rateThis: boolean;
   /** The theme in use, and the viewer's saved themes. */
   theme: Theme;
   themes: Theme[];
@@ -98,7 +102,7 @@ const DEFAULT_SETTINGS: Settings = {
   lastChannelButton: true, numbering: 'playlist', matchCards: 'classic', sportsMyChannels: false,
   hiddenGroups: [], lockedGroups: [], pinHash: '', lockAdult: true, lockSettings: false,
   remoteMap: {}, menuOrder: [], menuHidden: [], theme: DEFAULT_THEME, themes: [],
-  sortDefault: {}, sortByGroup: {}, vodView: {},
+  sortDefault: {}, sortByGroup: {}, vodView: {}, homeRows: [], rateThis: true,
 };
 
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });
@@ -118,6 +122,15 @@ export interface ResumePoint { position: number; duration: number; at: number; t
 export const resume = signal<Record<string, ResumePoint>>(store.get('resume', {}));
 /** Finished films/episodes. */
 export const watched = signal<Record<string, number>>(store.get('watched', {}));
+
+/** The viewer's own ratings (1–5), by item or episode key. */
+export const ratings = signal<Record<string, number>>(store.get('ratings', {}));
+export function rate(key: string, stars: number | null) {
+  const next = { ...ratings.value };
+  if (stars) next[key] = stars; else delete next[key];
+  ratings.value = next;
+  store.set('ratings', next);
+}
 
 export const isFavourite = (key: string) => favourites.value.includes(key);
 export function toggleFavourite(key: string): boolean {
