@@ -1,6 +1,6 @@
 {
   "appId": "tv.orbit.player",
-  "appName": "Matrix TV Streams",
+  "appName": "Matrix TV",
   "webDir": "dist",
   "server": {
     "androidScheme": "http",

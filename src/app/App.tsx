@@ -19,6 +19,9 @@ import { Search } from '../screens/Search';
 import { Favourites } from '../screens/Favourites';
 import { Settings } from '../screens/Settings';
 import { Welcome } from '../screens/Welcome';
+import { Startup } from '../screens/Startup';
+import { Sports } from '../screens/Sports';
+import { booting } from '../sources/loadState';
 
 export async function exitApp() {
   if (settings.value.askBeforeExit && !(await confirmDialog(`Leave ${APP_NAME}?`, 'Anything playing will stop.', 'Leave', 'Stay'))) return;
@@ -31,6 +34,7 @@ function Screen() {
   switch (r.name) {
     case 'home': return <Home />;
     case 'live': return <Live key="live" initialGroup={r.group} />;
+    case 'sports': return <Sports />;
     case 'guide': return <Guide />;
     case 'movies': return <Vod key="movies" kind="movies" />;
     case 'series': return <Vod key="series" kind="series" />;
@@ -64,20 +68,21 @@ export function App() {
     if (mode.value === 'full') return;
     const area = document.querySelector('.screen-area');
     if (!area?.contains(document.activeElement) || document.activeElement === document.body) focusScreen();
-  }, [route.value, noSources, loaded.value]);
+  }, [route.value, noSources, loaded.value, booting.value]);
   return (
     <>
-      <div class="shell" inert={mode.value === 'full' || undefined}>
+      <div class="shell" inert={mode.value === 'full' || (booting.value && !noSources) || undefined}>
         {!noSources && <Rail />}
         <main class="screen-area">
           {noSources ? <Welcome /> : <Screen />}
         </main>
       </div>
+      {booting.value && !noSources && <Startup />}
       <PlayerOverlay />
       <Sheets />
       <Dialog />
       <Toasts />
-      {loading.value && <div class="status-pill"><span class="spinner" />{loading.value}</div>}
+      {loading.value && !booting.value && <div class="status-pill"><span class="spinner" />{loading.value}</div>}
     </>
   );
 }

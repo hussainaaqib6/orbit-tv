@@ -48,7 +48,7 @@ for i in range(N_LIVE - len(live)):
     cat = live_cats[i % (len(COUNTRIES) * len(GENRES))]
     c = cat['category_name'].split(' |')[0]
     live.append({'num': 0, 'name': f'{c}: Channel {i} {rnd.choice(["HD", "FHD", "SD", "4K"])}', 'stream_type': 'live',
-                 'stream_id': i + 1, 'stream_icon': '', 'epg_channel_id': f'ch{i % N_GUIDE}.{c.lower()}',
+                 'stream_id': i + 1, 'stream_icon': '', 'epg_channel_id': f'ch{i % N_GUIDE}.{COUNTRIES[(i % N_GUIDE) % len(COUNTRIES)].lower()}',
                  'category_id': cat['category_id'], 'tv_archive': 0, 'tv_archive_duration': 0, 'added': '1700000000'})
 
 vod_cats = [{'category_id': str(i + 1), 'category_name': f'{c} | {g}', 'parent_id': 0}

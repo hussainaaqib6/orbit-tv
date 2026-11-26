@@ -13,7 +13,7 @@ export const osAvailable = () => !!osKey();
 
 const headers = () => ({
   'Api-Key': osKey(),
-  'X-User-Agent': 'MatrixTVStreams v2.0.0',
+  'X-User-Agent': 'MatrixTV v2.0.0',
   ...(token ? { Authorization: 'Bearer ' + token } : {}),
 });
 

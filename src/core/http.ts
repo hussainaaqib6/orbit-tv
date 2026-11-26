@@ -15,6 +15,8 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   body?: unknown;
   timeoutMs?: number;
+  /** Android: report download progress under this id (see loadState). */
+  progressId?: string;
 }
 
 export const hostOf = (u: string) => { try { return new URL(u).host; } catch { return u; } };
@@ -123,7 +125,7 @@ let downloadN = 0;
  * Xtream lists on a Fire TV Stick).
  */
 async function nativeGet(url: string, o: RequestOptions): Promise<Response> {
-  const r = await OrbitPlayer.download({ url, name: `dl${downloadN++ % 8}`, headers: o.headers, timeoutMs: o.timeoutMs ?? 120000 });
+  const r = await OrbitPlayer.download({ url, name: `dl${downloadN++ % 8}`, headers: o.headers, timeoutMs: o.timeoutMs ?? 120000, progressId: o.progressId });
   if (r.status >= 400 || r.status === 0) {
     let body = '';
     try { body = (await (await fetch(Capacitor.convertFileSrc(r.path))).text()).slice(0, 500); } catch {}

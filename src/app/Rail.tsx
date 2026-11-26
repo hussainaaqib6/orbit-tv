@@ -1,8 +1,8 @@
 // The side menu. It folds to icons while you browse and opens with names when focus moves onto it.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { route, goRoot, type RootName, type Route } from '../nav/router';
-import { Icon, BrandMark, type IconName } from '../ui/icons';
-import { BRAND } from '../core/brand';
+import { Icon, type IconName } from '../ui/icons';
+import { Monogram, Wordmark } from '../ui/brand';
 import { focusFirst } from '../nav/focus';
 import { clock } from '../core/format';
 import { favourites } from '../sources/library';
@@ -10,7 +10,7 @@ import { favourites } from '../sources/library';
 interface Entry { name: RootName; label: string; icon: IconName }
 const GROUPS: Entry[][] = [
   [{ name: 'home', label: 'Home', icon: 'home' }, { name: 'search', label: 'Search', icon: 'search' }, { name: 'guide', label: 'TV Guide', icon: 'guide' }],
-  [{ name: 'live', label: 'Live TV', icon: 'live' }, { name: 'movies', label: 'Movies', icon: 'movies' }, { name: 'series', label: 'Series', icon: 'series' }],
+  [{ name: 'live', label: 'Live TV', icon: 'live' }, { name: 'sports', label: 'Live Sports', icon: 'sports' }, { name: 'movies', label: 'Movies', icon: 'movies' }, { name: 'series', label: 'Series', icon: 'series' }],
   [{ name: 'favourites', label: 'Favourites', icon: 'star' }],
 ];
 
@@ -55,7 +55,7 @@ export function Rail() {
     // the menu never makes the screen beside it re-layout (which is slow on a TV stick).
     <nav class={`rail${open ? ' open' : ''}`} ref={ref} aria-label="Main menu" data-nav-group="rail" data-nav-scope="right">
       <div class="rail-panel">
-        <div class="rail-brand"><BrandMark /><img class="rail-word" src={BRAND.wordmark} alt="Matrix TV Streams" /></div>
+        <div class="rail-brand"><Monogram /><Wordmark class="rail-word" /></div>
         {GROUPS.map((g, i) => [i > 0 && <div class="rail-sep" key={`s${i}`} />, ...g.map(item)])}
         <div class="rail-grow" />
         {item({ name: 'settings', label: 'Settings', icon: 'settings' })}

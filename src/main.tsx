@@ -5,6 +5,7 @@ import './styles/legacy.css';
 import { App } from './app/App';
 import { store } from './core/storage';
 import { start, sources } from './sources/library';
+import { withStartup } from './sources/loadState';
 
 /** Older TV WebViews (before Chromium 84) ignore `gap` in flex rows; switch on the margin fallbacks. */
 function detectFlexGap() {
@@ -21,6 +22,6 @@ async function boot() {
   detectFlexGap();
   await store.restore();
   render(<App />, document.getElementById('app')!);
-  if (sources.value.length) start();
+  if (sources.value.length) withStartup(start);
 }
 boot();

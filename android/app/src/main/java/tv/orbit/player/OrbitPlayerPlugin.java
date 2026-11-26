@@ -67,7 +67,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.GZIPInputStream;
@@ -251,49 +254,80 @@ public class OrbitPlayerPlugin extends Plugin {
      * series lists can be tens of megabytes) are read by the WebView straight from that file, instead of
      * being parsed natively and copied across the bridge, which can stall a Fire TV Stick for minutes.
      */
+    /** Opens a GET request, following redirects (including http <-> https, which HttpURLConnection will not). */
+    private static HttpURLConnection openUrl(String u, JSObject hs, int timeout) throws Exception {
+        URL target = new URL(u);
+        int redirects = 0;
+        while (true) {
+            HttpURLConnection c = (HttpURLConnection) target.openConnection();
+            c.setConnectTimeout(20000);
+            c.setReadTimeout(timeout);
+            c.setInstanceFollowRedirects(false);
+            c.setRequestProperty("User-Agent", "VLC/3.0.21 LibVLC/3.0.21");
+            c.setRequestProperty("Accept-Encoding", "gzip");
+            if (hs != null) {
+                Iterator<String> keys = hs.keys();
+                while (keys.hasNext()) { String k = keys.next(); c.setRequestProperty(k, hs.getString(k)); }
+            }
+            int code = c.getResponseCode();
+            if (code >= 300 && code < 400 && c.getHeaderField("Location") != null && redirects++ < 5) {
+                target = new URL(target, c.getHeaderField("Location"));
+                c.disconnect();
+                continue;
+            }
+            return c;
+        }
+    }
+
+    private void emitProgress(String id, long bytes, long total, int items) {
+        JSObject p = new JSObject();
+        p.put("id", id);
+        p.put("bytes", bytes);
+        p.put("total", total);
+        p.put("items", items);
+        notifyListeners("progress", p);
+    }
+
+    /**
+     * Downloads a URL into the app's cache and returns the file path. Big playlists (Xtream film and
+     * series lists can be tens of megabytes) are read by the WebView straight from that file, instead of
+     * being parsed natively and copied across the bridge, which can stall a Fire TV Stick for minutes.
+     * With `progressId`, "progress" events report how much has arrived.
+     */
     @PluginMethod
     public void download(PluginCall call) {
         String u = call.getString("url");
         String name = call.getString("name", "download");
+        String progressId = call.getString("progressId");
         JSObject hs = call.getObject("headers", new JSObject());
         int timeout = call.getInt("timeoutMs", 60000);
         if (u == null) { call.reject("No address"); return; }
         downloads.execute(() -> {
             HttpURLConnection c = null;
             try {
-                URL target = new URL(u);
-                int redirects = 0;
-                while (true) {
-                    c = (HttpURLConnection) target.openConnection();
-                    c.setConnectTimeout(20000);
-                    c.setReadTimeout(timeout);
-                    c.setInstanceFollowRedirects(false);
-                    c.setRequestProperty("User-Agent", "VLC/3.0.21 LibVLC/3.0.21");
-                    c.setRequestProperty("Accept-Encoding", "gzip");
-                    Iterator<String> keys = hs.keys();
-                    while (keys.hasNext()) { String k = keys.next(); c.setRequestProperty(k, hs.getString(k)); }
-                    int code = c.getResponseCode();
-                    // Follow redirects, including http <-> https, which HttpURLConnection will not do itself.
-                    if (code >= 300 && code < 400 && c.getHeaderField("Location") != null && redirects++ < 5) {
-                        target = new URL(target, c.getHeaderField("Location"));
-                        c.disconnect();
-                        continue;
-                    }
-                    break;
-                }
+                c = openUrl(u, hs, timeout);
                 int status = c.getResponseCode();
+                long total = c.getContentLengthLong();
                 File out = new File(getContext().getCacheDir(), "orbit-" + name.replaceAll("[^A-Za-z0-9_-]", "_"));
                 InputStream in = status >= 400 ? c.getErrorStream() : c.getInputStream();
-                if (in != null && "gzip".equalsIgnoreCase(c.getContentEncoding())) in = new GZIPInputStream(in);
-                long size = 0;
+                boolean gz = "gzip".equalsIgnoreCase(c.getContentEncoding());
+                if (in != null && gz) in = new GZIPInputStream(in);
+                if (gz) total = -1; // Content-Length is the packed size
+                long size = 0, lastTick = 0;
                 try (OutputStream os = new FileOutputStream(out)) {
                     if (in != null) {
                         byte[] buf = new byte[65536];
                         int n;
-                        while ((n = in.read(buf)) > 0) { os.write(buf, 0, n); size += n; }
+                        while ((n = in.read(buf)) > 0) {
+                            os.write(buf, 0, n);
+                            size += n;
+                            long now = System.currentTimeMillis();
+                            if (progressId != null && now - lastTick > 250) { lastTick = now; emitProgress(progressId, size, total, 0); }
+                        }
                         in.close();
                     }
                 }
+                if (progressId != null) emitProgress(progressId, size, size, 0);
                 JSObject r = new JSObject();
                 r.put("status", status);
                 r.put("path", out.getAbsolutePath());
@@ -304,6 +338,95 @@ public class OrbitPlayerPlugin extends Plugin {
                 call.reject(e.getClass().getSimpleName() + ": " + e.getMessage());
             } finally {
                 if (c != null) c.disconnect();
+            }
+        });
+    }
+
+    /* ------------------------------ TV guide ------------------------------ */
+
+    private final ExecutorService guideBuilds = Executors.newSingleThreadExecutor();
+    private final ExecutorService guideQueries = Executors.newSingleThreadExecutor();
+
+    private static Set<String> stringSet(JSArray a) {
+        Set<String> out = new HashSet<>();
+        if (a == null) return out;
+        for (int i = 0; i < a.length(); i++) { String v = a.optString(i, null); if (v != null) out.add(v); }
+        return out;
+    }
+
+    /** Reads XMLTV guides into the guide database (see GuideStore). Reports "progress" with id "guide". */
+    @PluginMethod
+    public void guideBuild(PluginCall call) {
+        JSArray urlsA = call.getArray("urls", new JSArray());
+        List<String> urls = new ArrayList<>();
+        for (int i = 0; i < urlsA.length(); i++) { String v = urlsA.optString(i, null); if (v != null) urls.add(v); }
+        Set<String> ids = stringSet(call.getArray("ids"));
+        Set<String> names = stringSet(call.getArray("names"));
+        long offset = (long) (call.getDouble("offsetHours", 0.0) * 3600000L);
+        long from = call.getLong("from", System.currentTimeMillis() - 86400000L);
+        long to = call.getLong("to", System.currentTimeMillis() + 4 * 86400000L);
+        int maxDesc = call.getInt("maxDesc", 400);
+        guideBuilds.execute(() -> {
+            try {
+                final List<HttpURLConnection> open = new ArrayList<>();
+                GuideStore.Result r = GuideStore.build(getContext(), urls, ids, names, offset, from, to, maxDesc,
+                        url -> {
+                            HttpURLConnection c = openUrl(url, null, 180000);
+                            open.add(c);
+                            int st = c.getResponseCode();
+                            if (st >= 400) throw new java.io.IOException("HTTP " + st + " from " + c.getURL().getHost());
+                            InputStream in = c.getInputStream();
+                            boolean gz = "gzip".equalsIgnoreCase(c.getContentEncoding());
+                            long len = c.getContentLengthLong();
+                            return new GuideStore.Opened(gz ? new GZIPInputStream(in, 1 << 16) : in, gz ? -1 : len);
+                        },
+                        (bytes, total, programmes, file, files) -> {
+                            JSObject p = new JSObject();
+                            p.put("id", "guide");
+                            p.put("bytes", bytes);
+                            p.put("total", total);
+                            p.put("items", programmes);
+                            p.put("file", file);
+                            p.put("files", files);
+                            notifyListeners("progress", p);
+                        });
+                for (HttpURLConnection c : open) c.disconnect();
+                JSObject o = new JSObject();
+                o.put("programmes", r.programmes);
+                o.put("channels", r.channels);
+                o.put("errors", new JSArray(r.errors));
+                o.put("indexPath", GuideStore.indexFile(getContext()).getAbsolutePath());
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        });
+    }
+
+    /** The saved guide, if there is one: { exists, indexPath }. */
+    @PluginMethod
+    public void guideInfo(PluginCall call) {
+        JSObject o = new JSObject();
+        o.put("exists", GuideStore.exists(getContext()));
+        o.put("indexPath", GuideStore.indexFile(getContext()).getAbsolutePath());
+        call.resolve(o);
+    }
+
+    /** Programmes for some guide ids: { json: '{"id": [[start, stop, title, desc], …]}' }. */
+    @PluginMethod
+    public void guideQuery(PluginCall call) {
+        JSArray a = call.getArray("ids", new JSArray());
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < a.length(); i++) { String v = a.optString(i, null); if (v != null) ids.add(v); }
+        long from = call.getLong("from", 0L);
+        long to = call.getLong("to", Long.MAX_VALUE);
+        guideQueries.execute(() -> {
+            try {
+                JSObject o = new JSObject();
+                o.put("json", GuideStore.query(getContext(), ids, from, to));
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         });
     }

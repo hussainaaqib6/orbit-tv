@@ -7,6 +7,7 @@ export interface NativeKeyEvent { key: string; action: 'down' | 'up'; repeat: nu
 export interface NativeRect { x: number; y: number; width: number; height: number }
 export interface NativeTrack { id: string; type: 'audio' | 'text' | 'video'; label: string; language: string; selected: boolean; codec?: string; width?: number; height?: number }
 export interface NativeState { state: 'idle' | 'buffering' | 'ready' | 'ended'; playing: boolean }
+export interface NativeProgress { id: string; bytes: number; total: number; items: number; file?: number; files?: number }
 export interface NativeTime { position: number; duration: number; buffered: number; live: boolean; seekable: boolean }
 
 export interface OrbitPlayerPlugin {
@@ -26,7 +27,12 @@ export interface OrbitPlayerPlugin {
   startPairing(o: { page: string }): Promise<{ url: string }>;
   stopPairing(): Promise<void>;
   /** Downloads to the app cache; read the file with fetch(Capacitor.convertFileSrc(path)). */
-  download(o: { url: string; name: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<{ status: number; path: string; size: number; contentType?: string }>;
+  download(o: { url: string; name: string; headers?: Record<string, string>; timeoutMs?: number; progressId?: string }): Promise<{ status: number; path: string; size: number; contentType?: string }>;
+  /** Streams XMLTV guides into an on-device database (Android). Reports progress with id "guide". */
+  guideBuild(o: { urls: string[]; ids: string[]; names: string[]; offsetHours: number; from: number; to: number; maxDesc?: number }): Promise<{ programmes: number; channels: number; errors: string[]; indexPath: string }>;
+  guideInfo(): Promise<{ exists: boolean; indexPath: string }>;
+  guideQuery(o: { ids: string[]; from: number; to: number }): Promise<{ json: string }>;
+  addListener(ev: 'progress', fn: (e: NativeProgress) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'key', fn: (e: NativeKeyEvent) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'pairing', fn: (e: Record<string, string>) => void): Promise<PluginListenerHandle>;
   addListener(ev: 'state', fn: (e: NativeState) => void): Promise<PluginListenerHandle>;

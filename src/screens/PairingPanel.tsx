@@ -1,5 +1,6 @@
 // "Scan with your phone": a QR code that opens a page served by the TV on the home network.
 // Whatever the viewer sends from the phone is added as a playlist here.
+import { withStartup } from '../sources/loadState';
 import { useEffect, useState } from 'preact/hooks';
 import { renderSVG } from 'uqr';
 import { OrbitPlayer } from '../core/native';
@@ -44,7 +45,7 @@ export function PairingPanel({ onAdded }: { onAdded?: () => void }) {
       setStatus('loading');
       toast(`Received ${src.name} from your phone`);
       const added = addSource(src);
-      await reload(true);
+      await withStartup(() => reload(true));
       const s = sources.value.find(x => x.id === added.id);
       if (s?.error) toast(`${s.name}: ${s.error}`, true);
       if (alive) setStatus('waiting');

@@ -1,8 +1,8 @@
 // First run. Step one: pick how to add a playlist (or scan the QR code with a phone).
 // Step two: type the details with the remote.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { BrandMark, Icon, type IconName } from '../ui/icons';
-import { BRAND, APP_NAME } from '../core/brand';
+import { Icon, type IconName } from '../ui/icons';
+import { Wordmark } from '../ui/brand';
 import { SourceForm, type Kind } from './SourceForm';
 import { PairingPanel, pairingAvailable } from './PairingPanel';
 import { onAction } from '../nav/keys';
@@ -33,11 +33,10 @@ export function Welcome() {
 
   return (
     <div class="screen opaque" ref={ref}>
-      <div class="welcome-top"><span class="welcome-brand"><BrandMark /><img src={BRAND.wordmark} alt={APP_NAME} /></span><span class="tnum">{clock(now)}</span></div>
+      <div class="welcome-top"><Wordmark class="welcome-brand" /><span class="tnum">{clock(now)}</span></div>
       {!step ? (
         <div class="welcome">
           <div class="welcome-main">
-            <img class="welcome-word" src={BRAND.wordmark} alt={APP_NAME} />
             <h1>Add your first playlist</h1>
             <p class="lead">{pairingAvailable ? 'Scan the code with your phone and type your provider details there. Or type them here with the remote.' : 'Enter the details your TV provider sent you.'}</p>
             <div class="options">
