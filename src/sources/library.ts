@@ -9,7 +9,7 @@ import { loadXtream } from './xtream';
 import { parseM3U, looksLikeM3U } from './m3u';
 import { loadStalker, loadStalkerGuide } from './stalker';
 import { emptyGuide, guideIdFor, nowNext, parseXMLTV, wantedFor } from './epg';
-import { guide, programmesById, setMemoryGuide, useNativeGuide, memoryEntries, NATIVE_GUIDE } from './guideStore';
+import { guide, programmesById, prefetchGuide, setMemoryGuide, useNativeGuide, memoryEntries, NATIVE_GUIDE } from './guideStore';
 import { OrbitPlayer } from '../core/native';
 import { setPart, resetParts, type Part } from './loadState';
 import { isHidden, isLocked, unlocked, type Kind } from './restrictions';
@@ -86,6 +86,8 @@ export interface Settings {
   vodView: Record<string, 'grid' | 'list' | 'compact'>;
   /** Home rows in order (see screens/homeRows.ts); sports rows are "sport:<league id>". */
   homeRows: { id: string; on: boolean }[];
+  /** Live TV: switch on a channel's own subtitles (DVB or closed captions) when it sends them. */
+  liveSubtitles: boolean;
   /** Offer "Rate this" near the end of films and episodes. */
   rateThis: boolean;
   /** The theme in use, and the viewer's saved themes. */
@@ -102,7 +104,7 @@ const DEFAULT_SETTINGS: Settings = {
   lastChannelButton: true, numbering: 'playlist', matchCards: 'classic', sportsMyChannels: false,
   hiddenGroups: [], lockedGroups: [], pinHash: '', lockAdult: true, lockSettings: false,
   remoteMap: {}, menuOrder: [], menuHidden: [], theme: DEFAULT_THEME, themes: [],
-  sortDefault: {}, sortByGroup: {}, vodView: {}, homeRows: [], rateThis: true,
+  sortDefault: {}, sortByGroup: {}, vodView: {}, homeRows: [], rateThis: true, liveSubtitles: false,
 };
 
 export const settings = signal<Settings>({ ...DEFAULT_SETTINGS, ...store.get<Partial<Settings>>('settings', {}) });
@@ -177,16 +179,28 @@ const EMPTY: Catalog = { live: [], movies: [], series: [], epgUrls: [] };
 /** Everything the playlists contain. Screens use `catalog`, which leaves out hidden and locked categories. */
 export const rawCatalog = signal<Catalog>(EMPTY);
 
-function filterCatalog(c: Catalog, hidden: boolean): Catalog {
+/**
+ * Just the settings that change what is visible. Computed signals only pass on a change when the
+ * value changes, so the catalogue (hundreds of thousands of items) isn't filtered again every time
+ * an unrelated setting changes.
+ */
+const restrictionKey = computed(() => {
   const s = settings.value;
+  return JSON.stringify([s.hiddenGroups, s.lockedGroups, s.pinHash, s.lockAdult]);
+});
+const epgMap = computed(() => settings.value.epgMap);
+const numbering = computed(() => settings.value.numbering);
+
+function filterCatalog(c: Catalog, hidden: boolean): Catalog {
+  const s = settings.peek();
   if (!s.hiddenGroups.length && !s.lockedGroups.length && !s.pinHash) return c;
   const keep = (kind: Kind) => (x: { group: string }) => !isLocked(s, kind, x.group) && (!hidden || !isHidden(s, kind, x.group));
   return { ...c, live: c.live.filter(keep('live')), movies: c.movies.filter(keep('movie')), series: c.series.filter(keep('series')) };
 }
 /** What can be browsed: no hidden or locked categories. */
-export const catalog = computed(() => { void unlocked.value; return filterCatalog(rawCatalog.value, true); });
+export const catalog = computed(() => { void unlocked.value; void restrictionKey.value; return filterCatalog(rawCatalog.value, true); });
 /** What can be reached at all (favourites from hidden categories stay reachable; locked ones don't). */
-export const reachable = computed(() => { void unlocked.value; return filterCatalog(rawCatalog.value, false); });
+export const reachable = computed(() => { void unlocked.value; void restrictionKey.value; return filterCatalog(rawCatalog.value, false); });
 export { guide, guideTick } from './guideStore';
 export const loading = signal<string>('');
 export const loaded = signal(false);
@@ -202,7 +216,7 @@ export const itemIndex = computed(() => {
 
 /** Guide id per channel key, recomputed when the guide or manual matches change. */
 export const guideLinks = computed(() => {
-  const g = guide.value, manual = settings.value.epgMap;
+  const g = guide.value, manual = epgMap.value;
   const m = new Map<string, string>();
   for (const c of catalog.value.live) {
     const id = guideIdFor(c, g, manual);
@@ -218,6 +232,14 @@ export function programmesFor(c: Channel | undefined): Programme[] {
 }
 export const nowNextFor = (c: Channel | undefined, t = Date.now()) => nowNext(programmesFor(c), t);
 
+/** Loads the guide for a stretch of channels ahead of time (see prefetchGuide). */
+export function prefetchChannels(list: Channel[]) {
+  const links = guideLinks.peek();
+  const ids: string[] = [];
+  for (const c of list) { const id = links.get(c.key); if (id) ids.push(id); }
+  prefetchGuide(ids);
+}
+
 /**
  * The number shown for each channel and used by the number keys. Playlist order normally; with
  * numbering from favourites, favourites are 1, 2, 3… in favourites order and the rest follow.
@@ -226,7 +248,7 @@ export const channelNumbers = computed(() => {
   const live = catalog.value.live;
   const m = new Map<string, number>();
   let n = 0;
-  if (settings.value.numbering === 'favourites') {
+  if (numbering.value === 'favourites') {
     const idx = itemIndex.value;
     for (const k of favourites.value) if (idx.get(k)?.kind === 'live' && !m.has(k)) m.set(k, ++n);
   }
@@ -295,6 +317,8 @@ function numberChannels(live: Channel[]) {
 interface CacheBlob {
   at: number;
   catalog: Catalog;
+  /** The channels, films and series are saved separately (cat:live, cat:movies, cat:series). */
+  split?: boolean;
   /** Android keeps the guide in its own database and only notes when it was made here. */
   guide?: { at: number; native?: boolean; entries?: [string, Programme[]][]; names?: [string, string | null][]; ids?: [string, string][]; displayNames?: [string, string][] };
 }
@@ -316,6 +340,18 @@ export async function start(): Promise<void> {
   resetParts();
   let cached: CacheBlob | undefined;
   try { cached = await cache.get<CacheBlob>('catalog'); } catch { cached = undefined; }
+  // Big playlists are saved in three parts, read one at a time so each box can say what it's doing.
+  if (cached?.split) {
+    try {
+      const c = { ...cached.catalog };
+      for (const [part, key] of [['live', 'live'], ['movies', 'movies'], ['series', 'series']] as const) {
+        setPart(part, { status: 'loading', note: 'Opening your saved list' });
+        (c as Record<string, unknown>)[key] = (await cache.get<unknown[]>(`cat:${key}`)) ?? [];
+        setPart(part, { status: 'done', count: (c[key] as unknown[]).length, note: 'Up to date' });
+      }
+      cached.catalog = c;
+    } catch { cached = undefined; }
+  }
   if (cached?.catalog) {
     batch(() => { rawCatalog.value = cached!.catalog; loaded.value = true; });
     markCatalogParts(cached.catalog, 'Up to date');
@@ -403,7 +439,12 @@ async function reloadInner(gen: number): Promise<void> {
   if (failed) for (const p of ['live', 'movies', 'series'] as Part[]) setPart(p, { status: 'error', note: errs[0] });
   else markCatalogParts(next, '');
   saveSources();
-  try { await cache.set('catalog', { at: Date.now(), catalog: next } satisfies CacheBlob); } catch (e) { console.warn('[orbit] could not cache the catalogue', e); }
+  try {
+    await cache.set('cat:live', next.live);
+    await cache.set('cat:movies', next.movies);
+    await cache.set('cat:series', next.series);
+    await cache.set('catalog', { at: Date.now(), split: true, catalog: { ...next, live: [], movies: [], series: [] } } satisfies CacheBlob);
+  } catch (e) { console.warn('[orbit] could not cache the catalogue', e); }
   await reloadGuide();
 }
 

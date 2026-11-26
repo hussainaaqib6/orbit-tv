@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.util.Log;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
@@ -100,6 +101,13 @@ public class OrbitPlayerPlugin extends Plugin {
     private FrameLayout container;
     private FrameLayout frame;
     private SurfaceView surface;
+    /**
+     * The picture in the small preview box. Some Fire TV models only show a SurfaceView that fills the
+     * screen (a smaller one stays black), so the preview uses a TextureView, which is drawn like any
+     * other view. Full screen keeps the SurfaceView (cheaper, and needed for HDR).
+     */
+    private TextureView texture;
+    private boolean onTexture;
     /** Subtitles that come with the stream, drawn natively over the picture (handles image subtitles too). */
     private SubtitleView subtitles;
     /**
@@ -135,6 +143,10 @@ public class OrbitPlayerPlugin extends Plugin {
             t.put("buffered", player.getBufferedPosition() / 1000.0);
             t.put("live", player.isCurrentMediaItemLive());
             t.put("seekable", player.isCurrentMediaItemSeekable() && dur != C.TIME_UNSET && dur > 0);
+            // Video frames drawn so far (-1 if unknown): lets the app notice a frozen or black picture.
+            androidx.media3.exoplayer.DecoderCounters dc = player.getVideoDecoderCounters();
+            if (dc != null) dc.ensureUpdated();
+            t.put("frames", dc == null ? -1 : dc.renderedOutputBufferCount);
             notifyListeners("time", t);
             // Full screen needs a smooth seek bar; the preview box only needs the odd update.
             main.postDelayed(this, rect == null ? 250 : 1000);
@@ -162,6 +174,9 @@ public class OrbitPlayerPlugin extends Plugin {
 
             surface = new SurfaceView(getContext());
             frame.addView(surface, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+            texture = new TextureView(getContext());
+            texture.setVisibility(View.GONE);
+            frame.addView(texture, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
 
             shutter = new View(getContext());
             shutter.setBackgroundColor(Color.BLACK);
@@ -578,7 +593,9 @@ public class OrbitPlayerPlugin extends Plugin {
                 .build();
         player = new ExoPlayer.Builder(getContext(), renderers).setLoadControl(load).build();
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
-        player.setVideoSurfaceView(surface);
+        onTexture = rect != null;
+        if (onTexture) { texture.setVisibility(View.VISIBLE); surface.setVisibility(View.GONE); player.setVideoTextureView(texture); }
+        else player.setVideoSurfaceView(surface);
         // Embedded subtitles are off until the viewer picks a track.
         player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
@@ -685,8 +702,13 @@ public class OrbitPlayerPlugin extends Plugin {
                     .setAllowChunklessPreparation(true)
                     .createMediaSource(item);
         } else {
+            // Live subtitles: DVB subtitles come from the stream's own tables; closed captions carried
+            // inside the video (CEA-608/708) are only found when asked for.
             DefaultExtractorsFactory ex = new DefaultExtractorsFactory()
                     .setTsExtractorFlags(tsFlags)
+                    .setTsSubtitleFormats(java.util.Arrays.asList(
+                            new Format.Builder().setSampleMimeType(androidx.media3.common.MimeTypes.APPLICATION_CEA608).setAccessibilityChannel(1).setLabel("Closed captions").build(),
+                            new Format.Builder().setSampleMimeType(androidx.media3.common.MimeTypes.APPLICATION_CEA708).setAccessibilityChannel(1).setLabel("Closed captions (708)").build()))
                     .setConstantBitrateSeekingEnabled(true);
             source = new ProgressiveMediaSource.Factory(http, ex).createMediaSource(item);
         }
@@ -971,6 +993,21 @@ public class OrbitPlayerPlugin extends Plugin {
         sw = Math.round(sw * z);
         sh = Math.round(sh * z);
         surface.setLayoutParams(new FrameLayout.LayoutParams(sw, sh, Gravity.CENTER));
+        texture.setLayoutParams(new FrameLayout.LayoutParams(sw, sh, Gravity.CENTER));
+        // Preview box: TextureView. Full screen: SurfaceView. The stream keeps playing across the switch.
+        boolean wantTexture = rect != null;
+        if (player != null && wantTexture != onTexture) {
+            onTexture = wantTexture;
+            if (wantTexture) {
+                texture.setVisibility(View.VISIBLE);
+                player.setVideoTextureView(texture);
+                surface.setVisibility(View.GONE);
+            } else {
+                surface.setVisibility(View.VISIBLE);
+                player.setVideoSurfaceView(surface);
+                texture.setVisibility(View.GONE);
+            }
+        }
     }
 
     /* ------------------------------ lifecycle ------------------------------ */

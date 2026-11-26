@@ -26,7 +26,19 @@ function Shelf({ title, children }: { title: string; children: ComponentChildren
   );
 }
 
-const newest = <T extends { added: number }>(list: T[], n: number) => [...list].sort((a, b) => b.added - a.added).slice(0, n);
+/** The n newest items, without sorting the whole list (playlists can hold 200,000 films). */
+function newest<T extends { added: number }>(list: T[], n: number, keep: (x: T) => boolean = () => true): T[] {
+  const top: T[] = [];
+  for (const x of list) {
+    if (top.length === n && x.added <= top[n - 1].added) continue;
+    if (!keep(x)) continue;
+    let i = top.length;
+    while (i > 0 && top[i - 1].added < x.added) i--;
+    top.splice(i, 0, x);
+    if (top.length > n) top.pop();
+  }
+  return top;
+}
 
 export function Home() {
   const c = catalog.value;
@@ -45,8 +57,10 @@ export function Home() {
 
   const watchedSet = useMemo(() => new Set(Object.keys(watched.value)), [watched.value]);
   const started = useMemo(() => new Set(Object.entries(resume.value).map(([k, r]) => r.seriesKey ?? k)), [resume.value]);
-  const unwatchedMovies = useMemo(() => newest(c.movies.filter(m => !watchedSet.has(m.key) && !started.has(m.key)), 24), [c.movies, watchedSet, started]);
-  const unwatchedSeries = useMemo(() => newest(c.series.filter(x => !started.has(x.key) && ![...watchedSet].some(k => k.startsWith(`${x.key}:`))), 24), [c.series, watchedSet, started]);
+  const rowOn = (id: string) => homeRows(settings.value.homeRows).some(r => r.id === id && r.on);
+  const unwatchedMovies = useMemo(() => (rowOn('unwatchedMovies') ? newest(c.movies, 24, m => !watchedSet.has(m.key) && !started.has(m.key)) : []), [c.movies, watchedSet, started, settings.value.homeRows]);
+  const watchedSeries = useMemo(() => new Set([...watchedSet].map(k => k.split(':').slice(0, 3).join(':'))), [watchedSet]);
+  const unwatchedSeries = useMemo(() => (rowOn('unwatchedSeries') ? newest(c.series, 24, x => !started.has(x.key) && !watchedSeries.has(x.key)) : []), [c.series, watchedSeries, started, settings.value.homeRows]);
   const watchedItems = useMemo(() => Object.entries(watched.value).sort((a, b) => b[1] - a[1]).map(([k]) => idx.get(k)).filter((x): x is Movie => x?.kind === 'movie').slice(0, 24), [watched.value, idx]);
   void episodeTracks.value;
   const newEps = favVod.filter((x): x is Series => x.kind === 'series' && !!newEpisodeOf(x));

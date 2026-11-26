@@ -39,3 +39,4 @@
 .no-gap .vrow > * + * { margin-left: 1rem; }
 .no-gap .vrow-meta > * + * { margin-top: 0.2rem; }
 .no-gap .prog-card > * + * { margin-top: 0.3rem; }
+.no-gap .chrow .now > * + * { margin-left: 0.4rem; }

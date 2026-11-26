@@ -27,7 +27,7 @@ export class NativeEngine implements Engine {
         else if (s.state === 'ready') ev.state(s.playing ? 'playing' : 'paused');
         else ev.state('idle');
       }),
-      OrbitPlayer.addListener('time', t => ev.time({ position: t.position, duration: t.duration, live: this.live || t.live, seekable: t.seekable })),
+      OrbitPlayer.addListener('time', t => ev.time({ position: t.position, duration: t.duration, live: this.live || t.live, seekable: t.seekable, frames: (t as { frames?: number }).frames })),
       OrbitPlayer.addListener('tracks', t => ev.tracks(t.tracks.filter(x => x.type !== 'video').map(x => ({ id: x.id, type: x.type as 'audio' | 'text', label: x.label, language: x.language, selected: x.selected })))),
       OrbitPlayer.addListener('error', e => { ev.state('error'); ev.error(e.message, { http: e.http, code: e.code }); }),
     );

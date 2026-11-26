@@ -3,8 +3,9 @@
 // and OK on the channel that is already playing makes it full screen.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
-import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber } from '../sources/library';
+import { catalog, favourites, recentChannels, itemIndex, nowNextFor, programmesFor, groupsOf, settings, updateSettings, numberOf, channelByNumber, prefetchChannels } from '../sources/library';
 import { isHidden } from '../sources/restrictions';
+import { isDivider, dividerLabel } from '../core/names';
 import { progress, indexAt } from '../sources/epg';
 import type { Channel } from '../sources/types';
 import { VirtualList, rowProps } from '../ui/VirtualList';
@@ -90,8 +91,14 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
   // When the channel changes (zapping in full screen), the details show the new one again.
   useEffect(() => { setHi(null); }, [playingKey]);
 
+  // Guide data for the first screens of a list, fetched in one go when the list changes.
+  useEffect(() => { prefetchChannels(list.slice(Math.max(0, startIndex - 10), startIndex + 80)); }, [list]);
+
   // Where the list opens: on the playing channel. Worked out once per list so it doesn't jump about.
-  const startIndex = useMemo(() => Math.max(0, list.findIndex(c => c.key === playingKey)), [list]);
+  const startIndex = useMemo(() => {
+    const i = list.findIndex(c => c.key === playingKey);
+    return i >= 0 ? i : Math.max(0, list.findIndex(c => !isDivider(c.name)));
+  }, [list]);
   const [jump, setJump] = useState<{ index: number; id: number } | undefined>();
 
   // Coming back from full screen: focus goes to the channel that is playing, in this list.
@@ -107,6 +114,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 
   // OK: play in the preview; OK again on the playing channel: full screen.
   const choose = useCallback((c: Channel) => {
+    if (isDivider(c.name)) return; // a heading, not a channel
     clearTimeout(hiTimer.current);
     clearTimeout(followTimer.current);
     setHi(c);
@@ -127,7 +135,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
     // Optional: the preview follows the highlight once scrolling stops, so fast scrolling never
     // opens a stream for every channel passed.
     clearTimeout(followTimer.current);
-    if (settings.value.miniPlayer && settings.value.previewFollows) {
+    if (settings.value.miniPlayer && settings.value.previewFollows && !isDivider(c.name)) {
       followTimer.current = window.setTimeout(() => {
         if (P.mode.value === 'full' || P.current.value?.channel?.key === c.key) return;
         P.playChannel(c, { preview: true, channels: listRef.current });
@@ -212,7 +220,7 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
           </div>
           {list.length ? (
             <VirtualList items={list} rowRem={4.4} keyOf={c => c.key} startIndex={startIndex} jump={jump} navGroup="channels"
-              onFocusIndex={i => highlight(list[i])}
+              onFocusIndex={i => { highlight(list[i]); if (i % 20 === 0) prefetchChannels(list.slice(i, i + 80)); }}
               onRowAction={(a, i) => {
                 if (a === 'back' || a === 'left') { focusEl(screen.current!.querySelector<HTMLElement>('.cat.on')); return true; }
                 if (a === 'hold-ok' || a === 'menu' || a === 'info') { openItemMenu(list[i]); return true; }
@@ -238,15 +246,26 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
 interface RowProps { c: Channel; i: number; playing: boolean; autofocus: boolean; showNumbers: boolean; onHighlight: (c: Channel) => void; onChoose: (c: Channel) => void }
 
 const ChannelRow = memo(function ChannelRow({ c, i, playing, autofocus, showNumbers, onHighlight, onChoose }: RowProps) {
-  const { now } = nowNextFor(c);
   const name = cleanChannelName(c.name);
+  // Providers put divider rows in their lists ("##### UNITED KINGDOM #####"): show them as headings.
+  if (isDivider(c.name)) {
+    return (
+      <button class="chrow divider" {...rowProps(i)} data-autofocus={autofocus || undefined} onFocus={() => onHighlight(c)} onClick={() => onChoose(c)}>
+        <span class="num" /><span class="divider-name clip">{dividerLabel(c.name)}</span>
+      </button>
+    );
+  }
+  const { now } = nowNextFor(c);
   return (
     <button class={`chrow${playing ? ' playing' : ''}`} {...rowProps(i)} data-autofocus={autofocus || undefined} onFocus={() => onHighlight(c)} onClick={() => onChoose(c)}>
       <span class="num">{showNumbers ? numberOf(c) : ''}</span>
       <span class="logo"><Img src={c.logo} alt={name.name} /></span>
       <span class="meta">
-        <span class="name"><span class="clip">{name.name}</span>{isHidden(settings.value, 'live', c.group) && <Icon name="hidden" class="hidden-mark" />}{name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}</span>
-        <span class="now clip">{now ? now.title : 'No guide information'}</span>
+        <span class="name"><span class="clip">{name.name}</span>{isHidden(settings.value, 'live', c.group) && <Icon name="hidden" class="hidden-mark" />}</span>
+        <span class="now">
+          {name.quality && <span class="tag">{name.quality}</span>}{c.catchup && <span class="tag cu">Catch-up</span>}
+          <span class="clip">{now ? now.title : 'No guide information'}</span>
+        </span>
         {now && <span class="bar"><i style={{ width: `${progress(now) * 100}%` }} /></span>}
       </span>
       {playing && <span class="eq" aria-label="Playing"><i /><i /><i /></span>}

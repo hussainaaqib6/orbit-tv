@@ -14,7 +14,8 @@ export type EngineState = 'idle' | 'loading' | 'buffering' | 'playing' | 'paused
 
 export interface EngineEvents {
   state(s: EngineState): void;
-  time(t: { position: number; duration: number; live: boolean; seekable: boolean }): void;
+  /** `frames`: video frames drawn so far, when the engine knows (native only). */
+  time(t: { position: number; duration: number; live: boolean; seekable: boolean; frames?: number }): void;
   tracks(t: Track[]): void;
   /** Text of the embedded subtitle cue showing now ('' for none). */
   cue(text: string): void;
