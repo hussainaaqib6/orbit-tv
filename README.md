@@ -1,179 +1,133 @@
 # Orbit TV
 
-An IPTV player for **Android phones, Fire TV Stick, iPhone/iPad** and desktop (Windows, macOS, Linux). Bring your own provider: Orbit plays the channels, films and series from your own sources. It comes with no content of its own.
+An IPTV player for **Fire TV Stick, Android TV, Android phones, iPhone/iPad** and desktop (Windows, macOS, Linux). Bring your own provider: Orbit plays the channels, films and series from your own Xtream Codes login, M3U playlist or MAC portal. It comes with no content of its own.
 
-The `server/` folder contains **Orbit Server**, an optional Docker companion. It records programmes for every device and keeps your devices in sync.
+Version 2 is a rebuild. It has a new remote-first interface, a native ExoPlayer engine on Android and Fire TV, and full player controls.
+
+---
+
+## What it does
+
+**Live TV**
+- Categories, then channels with what's on now and a progress bar, then the highlighted channel playing in a preview with its upcoming programmes.
+- Full screen with OK. Up/Down change channel, Left opens the channel list over the picture, and number keys jump to a channel. Yellow goes back to the last channel.
+- Catch-up for Xtream servers and M3U `catchup` attributes. Hold OK on a channel and choose **Catch up**, or pick a past programme in the TV guide.
+
+**TV guide**
+- A grid that scrolls at the speed of the remote, 7 days back and 7 days ahead.
+- Guides load automatically from Xtream, from MAC portals, and from an M3U's `x-tvg-url`. You can add extra XMLTV links.
+- Channels are matched to the guide automatically. Ambiguous names are left unmatched rather than guessed, and you can choose a guide channel yourself (hold OK on a channel → **Choose guide channel**).
+
+**Movies and series**
+- A poster wall with categories, sorting (Yellow) and resume points.
+- Film and series pages with plots, seasons and episodes. With a TMDB key you also get backdrops and cast.
+- The next episode plays automatically.
+
+**Player**
+- Play/pause, a seek bar, skip back/forward (Left/Right, step adjustable), and Rewind/Fast-forward (30 s).
+- Picture: Fit, Fill, Stretch, 16:9, 4:3, and zoom.
+- Audio track choice, playback speed and stream info.
+- **Subtitles:** tracks in the stream, OpenSubtitles search, or a file.
+  - OpenSubtitles results are matched to the exact video file first (by its hash), so they line up.
+  - Timing can be shifted in 0.1 s steps, and frame-rate drift (23.976 ↔ 25 fps) can be corrected. Size and background are adjustable.
+- On Android and Fire TV, video plays through **ExoPlayer** with hardware decoding: MPEG-TS, HLS, HEVC, interlaced broadcasts, AC3/E-AC3 audio. If a live channel fails, Orbit tries the other stream format (TS ↔ HLS) by itself.
+
+**Everywhere**
+- Search across channels, films and series.
+- Favourites, Continue watching and Recently watched.
+- Playlists are cached, so the app opens instantly and refreshes in the background.
+
+### Remote control
+
+| Key | Browsing | Player |
+|---|---|---|
+| OK | Open / play | Show controls |
+| Hold OK, Menu, Info | Options for the item (favourite, catch-up, guide match) | Options (live: channel list) |
+| Back | Up one level → side menu → leave (asks first) | Hide controls → close player |
+| Left (first column) | Open the side menu | Channel list (live) / skip back (films) |
+| Up / Down | Move | Change channel (live) |
+| Rewind / Fast-forward | Page up / down | ±30 s (films) / change channel (live) |
+| Channel + / − | Page up / down | Change channel / next or previous episode |
+| Number keys | Jump to a channel number | Jump to a channel number |
+| Yellow | Change sort order | Last channel |
+| Blue / Zoom | | Next picture mode |
+
+On desktop: arrows and Enter, Escape for Back, Space for play/pause, right-click for options, F11 for full screen.
+
+### Not in version 2 yet
+
+The rebuild concentrates on doing the core well. These features from version 1 haven't been rebuilt yet:
+- Plex, Jellyfin and Emby
+- Multiview and the sports page
+- Recording, downloads and the Orbit Server integration (the `server/` folder is unchanged but the app doesn't connect to it yet)
+- Profiles and parental PINs
+- Trakt and SIMKL
+- Gemini live captions and Chromecast
+- Guide reminders
 
 ---
 
 ## Get the app onto your devices
 
-No coding tools are needed on your computer. GitHub builds the app for you for free.
+No coding tools are needed on your computer. GitHub builds the app for you.
 
-### 1. Put the project on GitHub (once)
+### Android phone and Fire TV Stick
 
-1. Create a free account at github.com and click **New repository**.
-   - Name it `orbit-tv`.
-   - Choose **Public** if you want to install on a Fire Stick by typing a link.
-2. On the new repo page, click **uploading an existing file**.
-3. Drag in everything inside this folder, then click **Commit changes**.
-   - The browser upload can skip the `.github` folder because its name starts with a dot. If the **Actions** tab shows no workflows after uploading, create the two files in the browser: **Add file → Create new file**, name it `.github/workflows/android.yml`, and paste in that file's contents. Do the same for `ios.yml`.
-4. Open the **Actions** tab. "Build Android & Fire TV app" runs by itself (about 6–8 minutes).
-5. When it finishes, **OrbitTV.apk** appears under **Releases**.
+1. Open the **Actions** tab on GitHub. **Build Android & Fire TV app** runs on every push to `main` (about 6–8 minutes).
+2. When it finishes, **OrbitTV.apk** appears under **Releases**.
+3. **Phone:** open the Releases page on the phone, tap **OrbitTV.apk**, allow installs from your browser, then tap **Install**.
+4. **Fire TV:**
+   1. Install **Downloader** (by AFTVnews) from the Amazon Appstore.
+   2. Go to **Settings → My Fire TV → Developer options → Install unknown apps** and turn on Downloader. If Developer options is missing, go to **Settings → My Fire TV → About** and click your device name 7 times.
+   3. In Downloader, enter (with your GitHub username): `https://github.com/YOUR-NAME/orbit-tv/releases/download/latest/OrbitTV.apk`
 
-### 2. Android phone
+New builds install over the old one and keep your data. Fire TV needs Fire OS 7 or newer (Fire TV Stick 3rd gen and later).
 
-1. Open the repo's **Releases** page on the phone.
-2. Tap **OrbitTV.apk**.
-3. Allow installs from your browser, then tap **Install**.
+### iPhone / iPad
 
-### 3. Fire TV Stick
-
-1. Install **Downloader** (by AFTVnews) from the Amazon Appstore.
-2. Go to **Settings → My Fire TV → Developer options → Install unknown apps** and turn on **Downloader**.
-   - If *Developer options* is missing, go to **Settings → My Fire TV → About** and click your device name 7 times.
-3. In Downloader, enter (with your GitHub username): `https://github.com/YOUR-NAME/orbit-tv/releases/download/latest/OrbitTV.apk`
-4. Choose **Install**.
-
-New builds install over the old one and keep your data.
-
-### 4. iPhone / iPad
-
-Apple only allows apps from outside the App Store in one of these ways:
-
-- **Free Apple ID:**
-  1. In **Actions**, run **Build iOS app (unsigned)**.
-  2. Install **OrbitTV-unsigned.ipa** from Releases with Sideloadly (sideloadly.io) or AltStore (altstore.io).
-  - The app needs re-signing every 7 days. AltStore can do this automatically.
+- **Free Apple ID:** in **Actions**, run **Build iOS app (unsigned)**, then install **OrbitTV-unsigned.ipa** from Releases with Sideloadly or AltStore. It needs re-signing every 7 days; AltStore can do this automatically.
 - **Mac with Xcode:** run `npm install && npm run ios`, pick your iPhone, then press ▶.
-- **Apple Developer Program (£79 / $99 a year):** install through TestFlight, or publish to the App Store.
 
-### 5. Desktop
+### Desktop
 
-1. Install Node.js 18+.
-2. Run `npm install`, then `npm start`.
-3. To make an installer, run `npm run dist:win`, `dist:mac` or `dist:linux`.
-
----
-
-## Features
-
-### Sources
-- Xtream Codes logins, M3U links and files, and **MAC portals** (Stalker/Ministra).
-- **Plex** (sign in with a code at plex.tv/link), **Jellyfin** and **Emby**.
-- You can use several sources at once.
-- Playlists refresh automatically every 6, 12 or 24 hours.
-
-### Watching
-- **Live TV:** groups, filter and preview, with channel up/down in full screen.
-- **Catch-up:** watch past programmes, or **Start over** on what's on now. Works with Xtream servers that support catch-up and with M3U `catchup` attributes.
-- **Movies and series:** posters, search, sorting and resume, and the next episode starts automatically.
-- **Multiview:** 2 or 4 channels at once.
-- **Sports:** live and upcoming games found in your own channels' guide, with live scores. Orbit never adds a channel you don't have.
-- **Favourites**, **Continue watching** and **Search**.
-
-### Guide
-- **7 days back and 7 days ahead**, with a day picker.
-- Guides load automatically from Xtream, from MAC portals, from an M3U's `x-tvg-url`, or from extra XMLTV links.
-- **Time correction** from −3 to +3 hours.
-- Channels are matched to the guide automatically. Ambiguous names are left unmatched rather than guessed, and you can **match a channel yourself**; your choice is kept.
-- **Reminders** use phone notifications even when the app is closed.
-
-### Profiles and parental controls
-- **Profiles:** each has its own favourites, history, resume points and reminders. A profile can have its own PIN.
-- **Kids profiles** only see children's categories. These are picked automatically, or you can choose them yourself.
-- **Parental PIN:** adult categories are locked automatically, and you can lock any other category. Locked categories stay hidden until the PIN is entered.
-
-### Recording and offline
-- **Record** from the guide or with **Record now**:
-  - On desktop, recordings are saved on the computer.
-  - On every device, they can be made by Orbit Server.
-- **Download** films and episodes to watch offline (desktop, Android, iPhone).
-- The **Library** lists recordings and downloads.
-
-### Integrations (each needs your own free key)
-- **TMDB:** artwork, backdrops, plots, cast and trailers.
-- **Trakt:** scrobbling.
-- **SIMKL:** watched history.
-- **OpenSubtitles:** search subtitles from the player's CC button. You can also load your own .srt/.vtt file.
-- **Google Gemini live captions:** subtitles for any channel as it plays, optionally translated.
-- **Chromecast:**
-  - On phones and Fire TV, use the Cast icon in the system player.
-  - On desktop, use the Cast button in the player.
-
-### Sync between devices
-- With Orbit Server, playlists, profiles, favourites, resume points, reminders and settings stay the same on every device.
-
----
-
-## Orbit Server (recording + sync)
-
-The server runs on an always-on machine at home, such as a NAS, Raspberry Pi or spare PC.
-
-```bash
-cd server
-# edit docker-compose.yml: set ORBIT_TOKEN to a long random secret
-docker compose up -d --build
-```
-
-Then, in the app, go to **Settings → Orbit Server**:
-
-1. Enter `http://<server-ip>:8090` and the token.
-2. Turn on **Sync between devices** on each device.
-
-Full details are in `server/README.md`.
-
----
-
-## Things to know
-
-**Playback**
-- **Fire TV Stick:** uses the system player (ExoPlayer) by default for smooth playback and AC3 audio.
-  - Switch players in **Settings → This device**.
-  - The built-in player keeps channel zapping, subtitles and live captions.
-- **iPhone:** can't play raw `.ts` streams. Orbit asks Xtream-style servers for the `.m3u8` version automatically.
-
-**MAC portals**
-- Series on MAC portals are not loaded; live TV and films are.
-- Portal links expire quickly, so record from a portal close to the programme's start time.
-
-**Recording and downloads**
-- Desktop recordings happen while the app is open. For recordings that run while devices are off, use Orbit Server.
-- Recordings saved on the computer are `.ts` files and only partly seekable. Server recordings are converted to MP4.
-- Downloads on phones need a direct file (MP4/MKV). Films that only stream in pieces (HLS) can be downloaded with the desktop app.
-
-**Gemini live captions**
-- They need the built-in player and arrive a few seconds behind the speech.
-- They don't work with Apple's native player on iPhone.
-
-**Chromecast**
-- The TV fetches the stream directly from your provider, so recordings stored on your computer can't be cast.
-
-**Security**
-- Logins are stored only on your devices and on your own Orbit Server.
-- Keep the server on your home network or behind a VPN.
-
-Use Orbit only with streams you have the right to watch.
+Install Node.js 20+, then run `npm install` and `npm start`. To make an installer, run `npm run dist:win`, `dist:mac` or `dist:linux`.
 
 ---
 
 ## For developers
 
 ```bash
-npm install          # also copies hls.js / mpegts.js into src/vendor
+npm install
+npm run dev          # the app in a browser at http://localhost:5173 (playlists need CORS there)
 npm start            # desktop app (Electron)
-npm run android      # open in Android Studio
-npm run ios          # open in Xcode (Mac)
-npm run apk          # release APK locally (needs the Android SDK)
+npm run check        # typecheck, lint, tests, build
+npm run android      # build, sync and open in Android Studio
+npm run ios          # build, sync and open in Xcode (Mac)
 ```
 
 ```
-src/                 the app itself (HTML/CSS/JS), shared by every platform
-desktop/             desktop-only: recorder/downloader, Chromecast, preload bridge
-main.js              desktop window (Electron)
-android/  ios/       native projects (Capacitor)
-server/              Orbit Server (Node + ffmpeg, Docker)
-.github/workflows/   cloud builds for Android/Fire TV and iOS
+src/
+  core/        platform detection, HTTP, storage, formatting, name cleaning
+  sources/     Xtream, M3U, MAC portal, XMLTV guide, catch-up, and the library state (signals)
+  services/    subtitles, OpenSubtitles, TMDB
+  player/      engines (ExoPlayer bridge, hls.js/mpegts.js), controller, full-screen UI and menus
+  nav/         remote keys → actions, spatial focus, layers, screen history
+  ui/          shared components: virtual list/grid, cards, sheets, dialogs, icons
+  screens/     Home, Live TV, TV guide, Movies/Series, details, Search, Favourites, Settings
+  styles/      theme and player styles
+tests/         Vitest tests for parsers, subtitles, OpenSubtitles hash, navigation and keys
+android/app/src/main/java/tv/orbit/player/
+  OrbitPlayerPlugin.java   ExoPlayer behind the WebView, remote key forwarding
+  MainActivity.java        hands remote keys to the plugin
+desktop/       Electron main process and preload
+server/        Orbit Server (Docker), unchanged from version 1
 ```
 
-The Android signing key in `android/app/orbit-sideload.jks` only lets sideloaded updates install over each other. Make your own before publishing to any store. The build reads `ORBIT_KEYSTORE`, `ORBIT_KEYSTORE_PASSWORD`, `ORBIT_KEY_ALIAS` and `ORBIT_KEY_PASSWORD`.
+How the pieces fit:
+- **Remote keys** become actions (`up`, `ok`, `hold-ok`, `back`, `chup`, …) in `nav/keys.ts`. An action is offered to the focused element first, as a bubbling `orbit-action` event. Whatever nothing handles falls through to spatial navigation, a click, or Back.
+- **Android video:** ExoPlayer draws on a `SurfaceView` behind a transparent WebView. The web layer tells it where the picture goes (full screen or the Live TV preview box) and draws the controls and subtitles on top.
+- **Subtitles** are drawn by Orbit itself for every engine, which is what makes delay and frame-rate correction possible.
+
+The Android signing key in `android/app/orbit-sideload.jks` is shared publicly. It only exists so sideloaded updates can install over each other. Make your own before publishing anywhere, and set it with `ORBIT_KEYSTORE`, `ORBIT_KEYSTORE_PASSWORD`, `ORBIT_KEY_ALIAS` and `ORBIT_KEY_PASSWORD`.
+
+Use Orbit only with streams you have the right to watch.
