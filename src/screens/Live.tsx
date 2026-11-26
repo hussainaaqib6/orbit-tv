@@ -236,6 +236,8 @@ export function Live({ initialGroup }: { initialGroup?: string }) {
               {P.error.value && P.mode.value === 'preview' && <div class="pv-msg solid">{P.error.value}</div>}
             </div>
           )}
+          {/* The picture is drawn over the box, so a stream error is shown under it. */}
+          {mini && P.error.value && P.mode.value === 'preview' && <p class="error-text pv-error">{P.error.value}</p>}
           {info && <ProgrammeInfo channel={info} isPlaying={info.key === playingKey && mini} />}
         </section>
       </div>

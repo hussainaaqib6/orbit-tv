@@ -1,5 +1,5 @@
 // The player: one engine, one current item, and everything the controls need, as signals.
-import { signal, batch, computed } from '@preact/signals';
+import { signal, batch, computed, effect } from '@preact/signals';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { StatusBar } from '@capacitor/status-bar';
 import { ScreenOrientation } from '@capacitor/screen-orientation';
@@ -12,7 +12,10 @@ import type { Channel, Playable } from '../sources/types';
 import { noteChannelPlayed, resume, saveResume, settings, recentChannels, itemIndex, type Aspect } from '../sources/library';
 import { versionsOf } from '../sources/alternatives';
 import { isDivider } from '../core/names';
-import { toast } from '../ui/overlays';
+import { toast, overlayOpen } from '../ui/overlays';
+import { pad } from '../ui/pin';
+import { booting } from '../sources/loadState';
+import { OrbitPlayer } from '../core/native';
 import { channelPlayable, channelUrl, episodeList, episodePlayable, liveFormat } from './playables';
 import { cueAt, parseSubtitles, pickSubtitleTrack, type Cue } from '../services/subtitles';
 
@@ -58,8 +61,6 @@ export const subtitleText = computed(() => {
 });
 
 let engine: Engine | null = null;
-/** Video frames drawn (native engine), or -1 when unknown. */
-let frames = -1;
 let triedOtherFormat = false;
 let autoSubsDone = false;
 export const subtitlesRaised = signal(false);
@@ -85,7 +86,6 @@ async function getEngine(): Promise<Engine> {
       if (s === 'ended') onEnded();
     },
     time: (t: { position: number; duration: number; live: boolean; seekable: boolean; frames?: number }) => {
-      if (t.frames !== undefined && t.frames >= 0) frames = t.frames;
       batch(() => {
         position.value = t.position;
         duration.value = t.duration;
@@ -128,7 +128,6 @@ export async function play(p: Playable, o: PlayOptions = {}) {
   triedOtherFormat = false;
   autoSubsDone = false;
   if (!o.recovering) recovery = newRecovery(p, o.alternatives);
-  frames = -1;
   batch(() => {
     current.value = p;
     error.value = '';
@@ -229,6 +228,16 @@ function setMode(m: Mode) {
     }
   }
 }
+
+/**
+ * Android: the preview picture is drawn above the app (see OrbitPlayerPlugin.setOnTop), except while
+ * a menu, dialog, PIN pad or the start-up screen is over it.
+ */
+effect(() => {
+  if (PLATFORM !== 'android' || engineName.value !== 'native') return;
+  const onTop = mode.value === 'preview' && !overlayOpen.value && !pad.value && !booting.value;
+  OrbitPlayer.setOnTop({ onTop }).catch(() => {});
+});
 
 /* ------------------------------ controls ------------------------------ */
 
@@ -457,26 +466,14 @@ setInterval(() => {
   if (!p || p.kind !== 'live' || !delay || error.value) { recovery.since = 0; return; }
   const now = Date.now();
   const st = state.value;
-  // Buffering or still starting for too long.
-  if (st === 'buffering' || st === 'loading') {
-    recovery.goodSince = 0;
-    if (!recovery.since) recovery.since = now;
-    else if (now - recovery.since > delay) recover(`stalled ${st}`);
-    return;
-  }
-  recovery.since = 0;
-  if (st !== 'playing') return;
-  // Playing, but nothing moves: a frozen picture, or sound over a black picture. The native engine
-  // counts drawn frames, which catches both; otherwise the clock is used.
-  // Radio and audio-only streams never draw frames, so frames only count once the stream has video.
-  const hasVideo = frames > 0;
-  const byFrames = frames >= 0 && hasVideo;
-  const tick = byFrames ? frames : position.value;
-  if (tick !== recovery.lastPos) { recovery.lastPos = tick; recovery.lastMove = now; }
-  else if (now - recovery.lastMove > delay + 3000) recover(byFrames ? 'no new video frames' : 'frozen');
-  // Playing well for two minutes: start counting reconnects afresh.
-  if (!recovery.goodSince) recovery.goodSince = now;
-  else if (recovery.reconnects && now - recovery.goodSince > 120000) recovery.reconnects = 0;
+  if (st === 'playing') { recovery.since = 0; if (!recovery.goodSince) recovery.goodSince = now; else if (recovery.reconnects && now - recovery.goodSince > 120000) recovery.reconnects = 0; return; }
+  if (st !== 'buffering' && st !== 'loading') { recovery.since = 0; return; }
+  if (!recovery.since) recovery.since = now;
+  // Buffering after the channel had been playing: reconnect after the chosen delay. A channel that
+  // is still starting gets much longer (some providers take a while to open a stream), so a slow
+  // start is never interrupted.
+  const limit = recovery.goodSince ? delay : Math.max(delay, 30000);
+  if (now - recovery.since > limit) recover(`${st} for ${Math.round((now - recovery.since) / 1000)}s`);
 }, 1000);
 
 function onEnded() {

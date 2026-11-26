@@ -143,10 +143,6 @@ public class OrbitPlayerPlugin extends Plugin {
             t.put("buffered", player.getBufferedPosition() / 1000.0);
             t.put("live", player.isCurrentMediaItemLive());
             t.put("seekable", player.isCurrentMediaItemSeekable() && dur != C.TIME_UNSET && dur > 0);
-            // Video frames drawn so far (-1 if unknown): lets the app notice a frozen or black picture.
-            androidx.media3.exoplayer.DecoderCounters dc = player.getVideoDecoderCounters();
-            if (dc != null) dc.ensureUpdated();
-            t.put("frames", dc == null ? -1 : dc.renderedOutputBufferCount);
             notifyListeners("time", t);
             // Full screen needs a smooth seek bar; the preview box only needs the odd update.
             main.postDelayed(this, rect == null ? 250 : 1000);
@@ -702,13 +698,9 @@ public class OrbitPlayerPlugin extends Plugin {
                     .setAllowChunklessPreparation(true)
                     .createMediaSource(item);
         } else {
-            // Live subtitles: DVB subtitles come from the stream's own tables; closed captions carried
-            // inside the video (CEA-608/708) are only found when asked for.
+            // Live subtitles: DVB subtitles and CEA-608 captions are picked up by the default TS reader.
             DefaultExtractorsFactory ex = new DefaultExtractorsFactory()
                     .setTsExtractorFlags(tsFlags)
-                    .setTsSubtitleFormats(java.util.Arrays.asList(
-                            new Format.Builder().setSampleMimeType(androidx.media3.common.MimeTypes.APPLICATION_CEA608).setAccessibilityChannel(1).setLabel("Closed captions").build(),
-                            new Format.Builder().setSampleMimeType(androidx.media3.common.MimeTypes.APPLICATION_CEA708).setAccessibilityChannel(1).setLabel("Closed captions (708)").build()))
                     .setConstantBitrateSeekingEnabled(true);
             source = new ProgressiveMediaSource.Factory(http, ex).createMediaSource(item);
         }
@@ -896,7 +888,30 @@ public class OrbitPlayerPlugin extends Plugin {
     @PluginMethod
     public void setRect(PluginCall call) {
         JSObject r = call.getObject("rect", null);
-        main.post(() -> { rect = rectFrom(r); layoutVideo(); call.resolve(); });
+        main.post(() -> { rect = rectFrom(r); layoutVideo(); applyOnTop(); call.resolve(); });
+    }
+
+    /**
+     * Preview box: draw the video above the WebView instead of through a see-through hole in it. Some
+     * Fire TV WebViews don't keep the page transparent while the menus show, so a picture behind
+     * them stays hidden; on top it always shows. The app turns this off while a menu or dialog is
+     * open over the box. Full screen always draws behind (the controls go on top of the picture).
+     */
+    @PluginMethod
+    public void setOnTop(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("onTop", false));
+        main.post(() -> { videoOnTop = on; applyOnTop(); call.resolve(); });
+    }
+    private boolean videoOnTop;
+    private void applyOnTop() {
+        if (container == null) return;
+        boolean top = videoOnTop && rect != null;
+        container.setZ(top ? 10f : 0f);
+        container.setTranslationZ(0f);
+        // On top the container itself must be see-through: only the picture in the box shows.
+        container.setBackgroundColor(top ? Color.TRANSPARENT : Color.BLACK);
+        container.setClickable(false);
+        container.setFocusable(false);
     }
 
     @PluginMethod

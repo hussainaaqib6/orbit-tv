@@ -671,3 +671,4 @@ body { background-image: var(--bg-image, none); background-size: cover; backgrou
 .chrow.divider { grid-template-columns: auto minmax(0, 1fr); background: transparent; }
 .divider-name { color: var(--faint); font-weight: 800; font-size: 0.85rem; letter-spacing: 0.04em; }
 .chrow.divider:focus .divider-name { color: #fff; }
+.pv-error { margin: 0.6rem 0 0; font-size: 0.85rem; }

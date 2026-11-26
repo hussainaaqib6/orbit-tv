@@ -1,5 +1,5 @@
 // Side sheets (hold OK / Menu), confirmation dialogs and toasts.
-import { signal } from '@preact/signals';
+import { signal, computed } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { pushLayer, focusFirst } from '../nav/focus';
@@ -21,6 +21,8 @@ export function replaceSheet(title: string, render: () => ComponentChildren, sub
 export const closeSheet = () => { sheets.value = sheets.value.slice(0, -1); };
 export const closeAllSheets = () => { sheets.value = []; };
 export const sheetOpen = () => sheets.value.length > 0;
+/** True while a side sheet or dialog is open (the preview video then goes behind the app). */
+export const overlayOpen = computed(() => sheets.value.length > 0 || !!dialog.value);
 
 function Sheet({ spec }: { spec: SheetSpec }) {
   const ref = useRef<HTMLDivElement>(null);
