@@ -346,7 +346,8 @@ export function PlayerOverlay() {
           </div>
           <div class="p-clock tnum">
             {clock(Date.now())}
-            {!live && s.showFinishTime && P.duration.value > 0 && <div class="p-ends">Ends {clock(Date.now() + Math.max(0, P.duration.value - P.position.value) * 1000 / (P.speed.value || 1))}</div>}
+            {/* Only worked out while the bar shows, so the hidden bar isn't redrawn on every position update. */}
+            {controls.value && !live && s.showFinishTime && P.duration.value > 0 && <div class="p-ends">Ends {clock(Date.now() + Math.max(0, P.duration.value - P.position.value) * 1000 / (P.speed.value || 1))}</div>}
             {live && P.streamFormat.value && <div class="p-ends">{P.streamFormat.value}</div>}
           </div>
         </div>
