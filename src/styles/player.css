@@ -75,3 +75,8 @@
   .p-next { text-align: left; }
 }
 .p-ends { font-size: 0.95rem; font-weight: 600; color: var(--muted); text-align: right; margin-top: 0.2rem; }
+
+/* Full-screen, nearly invisible layer flipped for a few frames to force a whole-screen redraw (see
+   repaintAll in PlayerOverlay.tsx). Never takes clicks or focus. */
+.p-flush { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #000; opacity: 0; pointer-events: none; }
+.seek-placeholder { height: 2.6rem; }

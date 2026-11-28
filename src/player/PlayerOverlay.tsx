@@ -32,11 +32,31 @@ const digits = signal('');
 let hideTimer = 0;
 let digitTimer = 0;
 
+/**
+ * Some Fire TV graphics chips reuse stale frames: when only part of the page changes (a subtitle line),
+ * the rest of the screen can come from an older frame, which may still show the title bar from when
+ * the controls were up, so it "flickers" in. Changing a full-screen, nearly invisible layer for a few
+ * frames makes the WebView redraw everything, flushing the stale frames out.
+ */
+let flushEl: HTMLElement | null = null;
+let flushing = 0;
+function repaintAll(frames = 4) {
+  if (!flushEl || flushing) return;
+  flushing = frames;
+  const step = () => {
+    if (!flushEl) { flushing = 0; return; }
+    flushEl.style.opacity = flushing % 2 ? '0.01' : '0.02';
+    if (--flushing > 0) requestAnimationFrame(step);
+    else flushEl.style.opacity = '0';
+  };
+  requestAnimationFrame(step);
+}
+
 function armHide() {
   clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
     const vodPaused = !P.isLive.value && P.state.value === 'paused';
-    if (!sheetOpen() && !vodPaused && !panel.value) controls.value = false;
+    if (!sheetOpen() && !vodPaused && !panel.value) { controls.value = false; setTimeout(() => repaintAll(), 260); }
   }, settings.value.controlsTimeout * 1000);
 }
 
@@ -54,6 +74,7 @@ export function showControls(focusSel?: string) {
 
 function hideControls() {
   controls.value = false;
+  setTimeout(() => repaintAll(), 260); // after the fade
   clearTimeout(hideTimer);
   (document.querySelector('.player') as HTMLElement | null)?.focus();
 }
@@ -291,6 +312,9 @@ export function PlayerOverlay() {
     };
   }, [full]);
 
+  // A subtitle line changing while the bars are hidden: redraw the whole screen, not just the line.
+  useEffect(() => { if (full && !controls.value) repaintAll(2); }, [P.subtitleText.value]);
+
   // A new channel or episode: show what it is for a few seconds.
   useEffect(() => { if (full && P.current.value) showControls(); }, [P.current.value?.key]);
   // Native subtitles move up while the controls show, and follow the size/background settings.
@@ -315,6 +339,7 @@ export function PlayerOverlay() {
   return (
     <div class={`player${controls.value ? ' show' : ''}`} ref={ref} tabIndex={-1}
       onClick={e => { if (e.target === e.currentTarget) { if (controls.value) hideControls(); else showControls(); } }}>
+      <div class="p-flush" ref={el => { flushEl = el; }} aria-hidden="true" />
       {sub && (
         <div class={`p-subs${controls.value ? ' raised' : ''}`} style={{ fontSize: `${(s.subSize / 100) * 2.1}rem` }}>
           <span class={s.subBackground ? 'boxed' : 'outlined'} dangerouslySetInnerHTML={{ __html: cueHtml(sub) }} />
@@ -355,7 +380,7 @@ export function PlayerOverlay() {
 
       {cur && (
         <div class="p-bottom">
-          {live && cur.channel ? <LiveStrip channel={cur.channel} /> : <SeekBar />}
+          {live && cur.channel ? <LiveStrip channel={cur.channel} /> : controls.value ? <SeekBar /> : <div class="seek-placeholder" />}
           <div class="p-buttons" data-nav-scope="up">
             <button class="pbtn big" onClick={() => { P.togglePause(); armHide(); }} aria-label={playing ? 'Pause' : 'Play'} data-autofocus><Icon name={playing ? 'pause' : 'play'} /></button>
             {!live && <button class="pbtn wide" onClick={() => P.seekBy(-s.skipStep)} aria-label={`Back ${s.skipStep} seconds`}><Icon name="back10" /><span>{s.skipStep} s</span></button>}
@@ -365,7 +390,7 @@ export function PlayerOverlay() {
             {live && <button class="pbtn wide" onClick={() => { panel.value = true; }}><Icon name="list" /><span>Channels</span></button>}
             {!live && cur.series && <button class="pbtn wide" onClick={openEpisodes}><Icon name="episodes" /><span>Episodes</span></button>}
             {!live && cur.series && <button class="pbtn" onClick={() => P.playEpisodeOffset(1)} aria-label="Next episode"><Icon name="next" /></button>}
-            {!live && s.rateThis && cur.kind !== 'catchup' && P.duration.value > 0 && P.position.value / P.duration.value >= 0.8 && (
+            {controls.value && !live && s.rateThis && cur.kind !== 'catchup' && P.duration.value > 0 && P.position.value / P.duration.value >= 0.8 && (
               <button class={`pbtn wide${ratings.value[cur.episode?.key ?? cur.key] ? ' on' : ''}`} onClick={() => openRate(cur.episode?.key ?? cur.key, cur.title)}>
                 <Icon name="star" /><span>{ratings.value[cur.episode?.key ?? cur.key] ? `${ratings.value[cur.episode?.key ?? cur.key]}★` : 'Rate this'}</span>
               </button>
