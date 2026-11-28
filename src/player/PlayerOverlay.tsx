@@ -32,31 +32,11 @@ const digits = signal('');
 let hideTimer = 0;
 let digitTimer = 0;
 
-/**
- * Some Fire TV graphics chips reuse stale frames: when only part of the page changes (a subtitle line),
- * the rest of the screen can come from an older frame, which may still show the title bar from when
- * the controls were up, so it "flickers" in. Changing a full-screen, nearly invisible layer for a few
- * frames makes the WebView redraw everything, flushing the stale frames out.
- */
-let flushEl: HTMLElement | null = null;
-let flushing = 0;
-function repaintAll(frames = 4) {
-  if (!flushEl || flushing) return;
-  flushing = frames;
-  const step = () => {
-    if (!flushEl) { flushing = 0; return; }
-    flushEl.style.opacity = flushing % 2 ? '0.01' : '0.02';
-    if (--flushing > 0) requestAnimationFrame(step);
-    else flushEl.style.opacity = '0';
-  };
-  requestAnimationFrame(step);
-}
-
 function armHide() {
   clearTimeout(hideTimer);
   hideTimer = window.setTimeout(() => {
     const vodPaused = !P.isLive.value && P.state.value === 'paused';
-    if (!sheetOpen() && !vodPaused && !panel.value) { controls.value = false; setTimeout(() => repaintAll(), 260); }
+    if (!sheetOpen() && !vodPaused && !panel.value) controls.value = false;
   }, settings.value.controlsTimeout * 1000);
 }
 
@@ -74,7 +54,6 @@ export function showControls(focusSel?: string) {
 
 function hideControls() {
   controls.value = false;
-  setTimeout(() => repaintAll(), 260); // after the fade
   clearTimeout(hideTimer);
   (document.querySelector('.player') as HTMLElement | null)?.focus();
 }
@@ -312,9 +291,6 @@ export function PlayerOverlay() {
     };
   }, [full]);
 
-  // A subtitle line changing while the bars are hidden: redraw the whole screen, not just the line.
-  useEffect(() => { if (full && !controls.value) repaintAll(2); }, [P.subtitleText.value]);
-
   // A new channel or episode: show what it is for a few seconds.
   useEffect(() => { if (full && P.current.value) showControls(); }, [P.current.value?.key]);
   // Native subtitles move up while the controls show, and follow the size/background settings.
@@ -339,7 +315,6 @@ export function PlayerOverlay() {
   return (
     <div class={`player${controls.value ? ' show' : ''}`} ref={ref} tabIndex={-1}
       onClick={e => { if (e.target === e.currentTarget) { if (controls.value) hideControls(); else showControls(); } }}>
-      <div class="p-flush" ref={el => { flushEl = el; }} aria-hidden="true" />
       {sub && (
         <div class={`p-subs${controls.value ? ' raised' : ''}`} style={{ fontSize: `${(s.subSize / 100) * 2.1}rem` }}>
           <span class={s.subBackground ? 'boxed' : 'outlined'} dangerouslySetInnerHTML={{ __html: cueHtml(sub) }} />
@@ -362,7 +337,10 @@ export function PlayerOverlay() {
         </div>
       )}
 
-      {cur && (
+      {/* The title bar only exists while the controls show. Fading it out left a see-through layer
+          that the Fire TV WebView sometimes drew at full strength for a frame when a subtitle line
+          changed, so the film title flashed while watching. */}
+      {cur && controls.value && (
         <div class="p-top">
           {cur.channel && <span class="p-logo"><Img src={cur.channel.logo} alt={cur.channel.name} /></span>}
           <div class="p-title">
@@ -371,8 +349,7 @@ export function PlayerOverlay() {
           </div>
           <div class="p-clock tnum">
             {clock(Date.now())}
-            {/* Only worked out while the bar shows, so the hidden bar isn't redrawn on every position update. */}
-            {controls.value && !live && s.showFinishTime && P.duration.value > 0 && <div class="p-ends">Ends {clock(Date.now() + Math.max(0, P.duration.value - P.position.value) * 1000 / (P.speed.value || 1))}</div>}
+            {!live && s.showFinishTime && P.duration.value > 0 && <div class="p-ends">Ends {clock(Date.now() + Math.max(0, P.duration.value - P.position.value) * 1000 / (P.speed.value || 1))}</div>}
             {live && P.streamFormat.value && <div class="p-ends">{P.streamFormat.value}</div>}
           </div>
         </div>
