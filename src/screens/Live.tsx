@@ -321,7 +321,6 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
         <div class="gx-clock"><b class="tnum">{clock(now)}</b><span>{new Date(now).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
         <Wordmark class="gx-logo" player={false} />
         <div class="lb-bar-right">
-          <div class="lb-cat"><b class="clip">{groupLabel}</b><span>{list.length.toLocaleString()} channels{searching ? '' : ' · Categories'}</span></div>
           <SearchBox text={searchText} onText={onSearch} placeholder="Search channels" />
           <button class="gx-iconbtn" onClick={onSort} aria-label={`Order: ${sortLabel}`} title={sortLabel}><Icon name="sort" /></button>
         </div>
@@ -336,6 +335,7 @@ function Browse({ group, groupLabel, list, favs, recent, all, groups, sortLabel,
           </div>
         </aside>
         <section class="lb-main" ref={grid}>
+          <div class="lb-title"><b class="clip">{groupLabel}</b><span class="tnum">{list.length.toLocaleString()} channels</span></div>
           {list.length
             ? <VirtualGrid items={list} minRem={8.6} ratio={0.78} extraRem={2.7} keyOf={c => c.key} render={c => <ChannelTile c={c} onPick={onPick} />} />
             : <div class="empty"><p>{searching ? 'No channels match your search.' : 'No channels in this category.'}</p></div>}

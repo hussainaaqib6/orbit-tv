@@ -52,3 +52,4 @@
 .no-gap .lb-bar-right > * + * { margin-left: 0.6rem; }
 .no-gap .si-kinds > * + * { margin-left: 0.3rem; }
 .no-gap .si-actions > * + * { margin-top: 0.4rem; }
+.no-gap .lb-title > * + * { margin-left: 0.7rem; }
