@@ -1,10 +1,10 @@
 /* ------------------------------ full-screen player ------------------------------ */
 .player { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; outline: none; }
-/* Hidden bars are not drawn at all (visibility, after the fade), not just see-through: some Fire TV
-   graphics chips flash a transparent layer at full strength for a frame when its content changes,
-   which made the film title blink in and out while watching. */
-.player > .p-top, .player > .p-bottom { opacity: 0; visibility: hidden; transition: opacity .2s, visibility 0s linear .2s; pointer-events: none; }
-.player.show > .p-top, .player.show > .p-bottom { opacity: 1; visibility: visible; transition: opacity .2s, visibility 0s; pointer-events: auto; }
+/* The bars appear and disappear without a fade: a faded-out layer is what the Fire TV WebView
+   sometimes flashed back at full strength (the film title blinking while watching). The title bar is
+   removed from the page while hidden; the bottom bar is taken out of display. */
+.player > .p-bottom { display: none; }
+.player.show > .p-bottom { display: block; }
 .player.show::before { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none;
   background: linear-gradient(180deg, #000b 0%, transparent 24%, transparent 50%, #0b0709ee 100%); }
 
@@ -76,7 +76,4 @@
 }
 .p-ends { font-size: 0.95rem; font-weight: 600; color: var(--muted); text-align: right; margin-top: 0.2rem; }
 
-/* Full-screen, nearly invisible layer flipped for a few frames to force a whole-screen redraw (see
-   repaintAll in PlayerOverlay.tsx). Never takes clicks or focus. */
-.p-flush { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #000; opacity: 0; pointer-events: none; }
 .seek-placeholder { height: 2.6rem; }
