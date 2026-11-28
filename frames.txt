@@ -1,0 +1,4 @@
+FRAMES home: Total frames rendered: 8;Janky frames: 8 (100.00%);50th percentile: 34ms;90th percentile: 38ms;99th percentile: 38ms;
+FRAMES live-categories: Total frames rendered: 61;Janky frames: 61 (100.00%);50th percentile: 65ms;90th percentile: 89ms;99th percentile: 117ms;
+FRAMES live-cards: Total frames rendered: 16;Janky frames: 16 (100.00%);50th percentile: 38ms;90th percentile: 42ms;99th percentile: 69ms;
+FRAMES channel-list-with-preview: Total frames rendered: 399;Janky frames: 392 (98.25%);50th percentile: 53ms;90th percentile: 93ms;99th percentile: 150ms;

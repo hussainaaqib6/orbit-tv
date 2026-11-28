@@ -1,0 +1,9 @@
+11-28 12:42:12.241  3159  3159 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 8112234, pluginId: OrbitPlayer, methodName: guideBuild
+11-28 12:42:12.282  3159  3159 V Capacitor: callback: 8112234, pluginId: OrbitPlayer, methodName: guideBuild, methodData: {"urls":["http:\/\/10.0.2.2:8098\/xmltv.php?username=test&password=test"],"ids":["ch0.uk","ch120.uk","ch240.uk","ch360.uk","ch480.uk","ch600.uk","ch720.uk","ch840.uk","ch960.uk","ch1080.uk","ch1200.uk","ch1320.uk","ch1440.uk","ch1560.uk","ch1680.uk","ch1800.uk","ch1920.uk","ch2
+11-28 12:44:17.524  3159  3159 I Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] guide: 871740 programmes for 6012 channels in 125s 
+11-28 12:44:18.327  3159  3159 I Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 47 - Msg: [orbit] startup finished in 149s
+11-28 12:45:19.659  3159  3159 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 8112249, pluginId: OrbitPlayer, methodName: guideQuery
+11-28 12:45:19.659  3159  3159 V Capacitor: callback: 8112249, pluginId: OrbitPlayer, methodName: guideQuery, methodData: {"ids":["ch2400.uk","ch1200.uk","ch1320.uk","ch1440.uk","ch1560.uk","ch1680.uk","ch1800.uk","ch1920.uk","ch2040.uk","ch2160.uk","ch2280.uk","ch2520.uk","ch2640.uk","ch2760.uk","ch2880.uk","ch3000.uk","ch3120.uk","ch3240.uk","ch3360.uk","ch3480.uk","ch3600.uk","ch3720.uk","ch384
+11-28 12:48:40.204  8354  8354 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 133173564, pluginId: OrbitPlayer, methodName: guideInfo
+11-28 12:48:40.204  8354  8354 V Capacitor: callback: 133173564, pluginId: OrbitPlayer, methodName: guideInfo, methodData: {}
+11-28 12:48:41.042  8354  8354 I Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 47 - Msg: [orbit] startup finished in 4s

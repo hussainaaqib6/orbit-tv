@@ -1,0 +1,43 @@
+11-28 12:48:35.126  3241  3241 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+11-28 12:48:36.413  8354  8354 D Capacitor: Registering plugin instance: OrbitPlayer
+11-28 12:48:37.168  8354  8354 E Capacitor/Console: File:  - Line 6 - Msg: Error injecting safe area CSS: TypeError: Cannot read property 'style' of null
+11-28 12:48:37.172  8354  8354 E Capacitor/Console: File:  - Line 6 - Msg: Error injecting safe area CSS: TypeError: Cannot read property 'style' of null
+11-28 12:48:37.395  8354  8354 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 133173561, pluginId: OrbitPlayer, methodName: addListener
+11-28 12:48:37.395  8354  8354 V Capacitor: callback: 133173561, pluginId: OrbitPlayer, methodName: addListener, methodData: {"eventName":"progress"}
+11-28 12:48:37.428  8354  8354 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 133173563, pluginId: OrbitPlayer, methodName: addListener
+11-28 12:48:37.428  8354  8354 V Capacitor: callback: 133173563, pluginId: OrbitPlayer, methodName: addListener, methodData: {"eventName":"key"}
+11-28 12:48:37.653  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.upd-skip "Please wait… (OK to skip"
+11-28 12:48:40.204  8354  8354 V Capacitor/Plugin: To native (Capacitor plugin): callbackId: 133173564, pluginId: OrbitPlayer, methodName: guideInfo
+11-28 12:48:40.204  8354  8354 V Capacitor: callback: 133173564, pluginId: OrbitPlayer, methodName: guideInfo, methodData: {}
+11-28 12:48:40.213  8354  8354 I Capacitor/Console: File: http://localhost/ - Line 337 - Msg: {"exists":true,"indexPath":"/data/user/0/com.matrixstreams.player/files/guide2-index.json"}
+11-28 12:48:40.216  8354  8414 D Capacitor: Handling local request: http://localhost/_capacitor_file_/data/user/0/com.matrixstreams.player/files/guide2-index.json
+11-28 12:48:41.042  8354  8354 I Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 47 - Msg: [orbit] startup finished in 4s
+11-28 12:48:41.085  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.gx-tile.big "Live TV57,000 channels"
+11-28 12:48:44.905  8460  8460 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-28 12:48:44.907  8460  8460 I AndroidRuntime: Using default boot image
+11-28 12:48:44.907  8460  8460 I AndroidRuntime: Leaving lock profiling enabled
+11-28 12:48:44.977  8460  8460 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-28 12:48:44.981  8460  8460 D AndroidRuntime: Shutting down VM
+11-28 12:48:45.198  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] ok -> body
+11-28 12:48:45.276  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.cat.on "UK | Entertainment476"
+11-28 12:48:52.435  8477  8477 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-28 12:48:52.436  8477  8477 I AndroidRuntime: Using default boot image
+11-28 12:48:52.436  8477  8477 I AndroidRuntime: Leaving lock profiling enabled
+11-28 12:48:52.489  8477  8477 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-28 12:48:52.495  8477  8477 D AndroidRuntime: Shutting down VM
+11-28 12:48:52.503  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] back -> body
+11-28 12:48:52.546  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.gx-tile.big "Live TV57,000 channels"
+11-28 12:48:53.553  8490  8490 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-28 12:48:53.554  8490  8490 I AndroidRuntime: Using default boot image
+11-28 12:48:53.554  8490  8490 I AndroidRuntime: Leaving lock profiling enabled
+11-28 12:48:53.608  8490  8490 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-28 12:48:53.613  8490  8490 D AndroidRuntime: Shutting down VM
+11-28 12:48:53.618  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] back -> button.gx-tile.big "Live TV57,000 channels"
+11-28 12:48:53.620  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.btn.quiet "Stay"
+11-28 12:48:56.091  8507  8507 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-28 12:48:56.092  8507  8507 I AndroidRuntime: Using default boot image
+11-28 12:48:56.092  8507  8507 I AndroidRuntime: Leaving lock profiling enabled
+11-28 12:48:56.145  8507  8507 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-28 12:48:56.148  8507  8507 D AndroidRuntime: Shutting down VM
+11-28 12:48:56.151  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] ok -> body
+11-28 12:48:56.170  8354  8354 D Capacitor/Console: File: http://localhost/assets/index-DkwY8vg3.js - Line 1 - Msg: [orbit] focus button.gx-tile.big "Live TV57,000 channels"
