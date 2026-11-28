@@ -779,3 +779,36 @@ body.video-preview .pv-info { margin: -1.2rem -1.2rem 0 0; padding: 1.2rem 1.2re
 /* Screens: the top-level one stays mounted, hidden, under a film/series/settings page. */
 .slot { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
 .slot.kept { visibility: hidden; }
+
+/* ---------- Phones and small screens (landscape) ----------
+   The big Home tiles take whatever space is left between the top bar and footer, so all four always
+   fit (the TV size stays the same). Short screens get a slimmer top bar and footer. */
+@supports (width: min(1px, 2px)) {
+  .gx-big { --t: min(14.5rem, calc((100vw - 10rem) / 4), calc(100vh - 16rem)); }
+  .gx-tile.big { width: var(--t); height: var(--t); }
+  .gx-tile.big .gx-icon svg { width: calc(var(--t) * 0.43); height: calc(var(--t) * 0.43); }
+  .gx-tile.big .gx-label { font-size: calc(var(--t) * 0.13); }
+}
+@media (max-height: 500px) {
+  .gx-top { height: 4.4rem; padding: 0 1.6rem; }
+  .gx-logo { font-size: 1.8rem; }
+  .gx-foot { height: 5.8rem; padding: 0 1.6rem; border-top-width: 0.22rem; }
+  .gx-foot .gx-tile { width: 4.4rem; height: 4.4rem; }
+  .gx-foot .gx-icon svg { width: 1.6rem; height: 1.6rem; }
+  .gx-foot .gx-label { font-size: 0.58rem; }
+  .gx-expire b { font-size: 0.95rem; }
+  .gx-expire span { font-size: 0.75rem; }
+  .gx-big { gap: 1.2rem; }
+  .gx-tile.big .gx-sub { font-size: 0.72rem; }
+  .lb-bar { height: 4.4rem; padding: 0 1.2rem; }
+  .lb-bar .sec-search { width: 13rem; }
+  .lb-body { grid-template-columns: 15rem minmax(0, 1fr); }
+  .settings-home, .settings-page { padding: 1.4rem 1.8rem 2rem; }
+  .settings-top { margin: -1.4rem -1.8rem 1.2rem; padding: 0.7rem 1.8rem; }
+  .settings-grid { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
+  .set-tile { height: 7rem; }
+}
+/* Live TV: the category name sits above the channel cards (the top bar has the clock, logo, search and order). */
+.lb-title { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.5rem 1.8rem 0.2rem; flex: none; }
+.lb-title b { font-size: 1.15rem; font-weight: 700; max-width: 70%; }
+.lb-title span { color: var(--muted); font-size: 0.82rem; }
