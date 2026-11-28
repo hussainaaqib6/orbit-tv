@@ -86,7 +86,7 @@ New builds install over the old one and keep your data. Fire TV needs Fire OS 7 
 
 ### iPhone / iPad
 
-- **Free Apple ID:** in **Actions**, run **Build iOS app (unsigned)**, then install **OrbitTV-unsigned.ipa** from Releases with Sideloadly or AltStore. It needs re-signing every 7 days; AltStore can do this automatically.
+- **Free Apple ID:** in **Actions**, run **Build iOS app (unsigned)**, then install **OrbitTV-unsigned.ipa** from Releases with Sideloadly, AltStore or SideStore. With a free Apple ID it needs re-signing every 7 days (AltStore and SideStore do this automatically); a paid Apple developer account makes it last a year.
 - **Mac with Xcode:** run `npm install && npm run ios`, pick your iPhone, then press ▶.
 
 ### Desktop
